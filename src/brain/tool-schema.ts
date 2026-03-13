@@ -1,6 +1,6 @@
 import type { CapabilityRegistry } from "../executor/capability-registry.ts";
 import type { CapabilityId } from "../executor/types.ts";
-import type { JsonSchema, PlannerToolDefinition } from "./types.ts";
+import type { JsonSchema, PlannerToolCatalog, PlannerToolDefinition } from "./types.ts";
 
 const STRING = { type: "string" } as const;
 
@@ -188,4 +188,11 @@ export function exportPlannerTools(capabilities: CapabilityRegistry): PlannerToo
     supportedProfiles: capability.supportedProfiles,
     defaultProfile: capability.defaultProfile
   }));
+}
+
+export function exportPlannerToolCatalog(capabilities: CapabilityRegistry): PlannerToolCatalog {
+  return {
+    version: "planner-tools.v1",
+    items: exportPlannerTools(capabilities)
+  };
 }

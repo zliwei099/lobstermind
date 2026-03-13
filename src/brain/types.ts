@@ -26,9 +26,19 @@ export interface PlannerToolDefinition {
   defaultProfile: string;
 }
 
+export interface PlannerToolCatalog {
+  version: "planner-tools.v1";
+  items: PlannerToolDefinition[];
+}
+
+export interface PlannerRequestContext {
+  traceId: string;
+}
+
 export interface PlannerRuntimeRequest {
   intent: string;
-  tools: PlannerToolDefinition[];
+  toolCatalog: PlannerToolCatalog;
+  context: PlannerRequestContext;
 }
 
 export type PlannerDecision =
@@ -49,13 +59,39 @@ export type PlannerDecision =
       unsupported: Unsupported;
     };
 
+export interface PlannerProviderDescriptor {
+  id: string;
+  label: string;
+  transport: "mock" | "cli-bridge" | "native-runtime";
+  experimental: boolean;
+  supportsToolCalling: boolean;
+}
+
+export interface PlannerDiagnostic {
+  level: "info" | "warning" | "error";
+  code: string;
+  message: string;
+}
+
+export interface PlannerEnvelope {
+  version: "planner-envelope.v1";
+  provider: PlannerProviderDescriptor;
+  traceId: string;
+  decision: PlannerDecision;
+  diagnostics: PlannerDiagnostic[];
+  rawOutput?: unknown;
+}
+
 export interface PlannerProvider {
-  plan(request: PlannerRuntimeRequest): Promise<PlannerDecision>;
+  readonly descriptor: PlannerProviderDescriptor;
+  plan(request: PlannerRuntimeRequest): Promise<PlannerEnvelope>;
 }
 
 export interface PlannerRuntime {
+  readonly toolCatalog: PlannerToolCatalog;
   readonly tools: PlannerToolDefinition[];
   plan(intent: string): Promise<PlannerDecision>;
+  inspect(intent: string): Promise<PlannerEnvelope>;
 }
 
 export type BrainPlanResult = PlannerDecision;

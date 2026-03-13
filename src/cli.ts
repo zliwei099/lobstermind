@@ -12,6 +12,8 @@ async function main(): Promise<void> {
     console.log([
       "Usage:",
       "  npm run cli -- message <senderId> <text>",
+      "  npm run cli -- planner-tools",
+      "  npm run cli -- planner-plan <text>",
       "  npm run cli -- approvals",
       "  npm run cli -- audits",
       "  npm run cli -- approve <approval-id>",
@@ -39,6 +41,23 @@ async function main(): Promise<void> {
 
   if (command === "approvals") {
     console.log(JSON.stringify(runtime.approvals.list(), null, 2));
+    return;
+  }
+
+  if (command === "planner-tools") {
+    console.log(JSON.stringify(runtime.planner?.toolCatalog ?? { version: "planner-tools.v1", items: [] }, null, 2));
+    return;
+  }
+
+  if (command === "planner-plan") {
+    const text = rest.join(" ").trim();
+    if (!text) {
+      throw new Error("Usage: planner-plan <text>");
+    }
+    if (!runtime.planner) {
+      throw new Error("Planner runtime is disabled.");
+    }
+    console.log(JSON.stringify(await runtime.planner.inspect(text), null, 2));
     return;
   }
 
@@ -83,7 +102,7 @@ async function main(): Promise<void> {
       brainEnabled: runtime.config.brainEnabled,
       brainProvider: runtime.config.brainProvider,
       brainModel: runtime.config.brainModel,
-      plannerTools: runtime.planner?.tools ?? [],
+      plannerTools: runtime.planner?.toolCatalog ?? { version: "planner-tools.v1", items: [] },
       allowedExecutionProfiles: runtime.config.allowedExecutionProfiles,
       skills: runtime.skills.list().map((skill) => skill.name),
       capabilities: runtime.capabilities.list().map((capability) => capability.id)

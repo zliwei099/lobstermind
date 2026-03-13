@@ -115,14 +115,15 @@ The optional planner runtime is the model-facing planning layer for requests tha
 Current architecture:
 
 - the planner runtime exports a model-facing tool catalog from the capability registry
-- a provider adapter turns user intent plus that tool catalog into one structured planning decision
+- a provider adapter turns user intent plus that tool catalog into one structured planning envelope
+- the runtime validates, normalizes, and annotates provider output before any capability request is accepted
 - execution still happens only through the capability protocol, policy checks, approvals, adapters, and audit log
 - if the planner runtime is disabled or unavailable, LobsterMind still runs with the rule-based planner alone
 
 Implemented today:
 
 - `mock`: deterministic local testing provider
-- `codex-cli`: experimental bridge that shells out to the local Codex CLI and asks it for one structured planning decision
+- `codex-cli`: experimental bridge that shells out to the local Codex CLI and asks it for one structured planning envelope
 
 Not implemented today:
 
@@ -148,6 +149,16 @@ Setup and examples:
 
 - Planner runtime architecture: [docs/planner-runtime.md](/Users/levy/.openclaw/workspace/lobstermind/docs/planner-runtime.md)
 - Codex CLI bridge guide: [docs/brain-codex.md](/Users/levy/.openclaw/workspace/lobstermind/docs/brain-codex.md)
+
+Inspection helpers:
+
+```bash
+npm run cli -- planner-tools
+npm run cli -- planner-plan "read README.md"
+curl -X POST http://127.0.0.1:8787/planner/plan \
+  -H "content-type: application/json" \
+  -d '{"intent":"read README.md"}'
+```
 
 ## Feishu long connection
 
@@ -208,6 +219,7 @@ The optional HTTP server exposes:
 
 - `GET /health`
 - `GET /planner/tools`
+- `POST /planner/plan`
 - `POST /feishu/webhook`
 - `POST /agent/messages`
 - `GET /approvals`

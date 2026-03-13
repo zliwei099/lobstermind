@@ -4,7 +4,7 @@ LobsterMind now has a planner runtime for natural-language requests that are too
 
 This document describes the current Codex CLI bridge provider. It is implemented today, but it is experimental and should be treated as a temporary fallback rather than LobsterMind's long-term primary architecture.
 
-The planner runtime does not execute actions. It only returns structured planning outputs:
+The planner runtime does not execute actions. It only returns structured planning outputs inside a provider-neutral `planner-envelope.v1`:
 
 - a `CapabilityRequest`
 - a clarification question
@@ -19,11 +19,12 @@ Execution still goes through the existing capability registry, policy evaluation
 2. `src/agent/planner.ts` runs the fast rule-based planner first.
 3. If no rule matches and `LOBSTERMIND_BRAIN_ENABLED=true`, LobsterMind calls the configured planner provider.
 4. The provider returns JSON for either:
-   - `kind: "request"` with a structured capability request
-   - `kind: "clarification"` with a follow-up question
-   - `kind: "refusal"`
-   - `kind: "unsupported"`
-5. The returned capability request is submitted through the normal executor path.
+   - `decision.kind: "request"` with a structured capability request
+   - `decision.kind: "clarification"` with a follow-up question
+   - `decision.kind: "refusal"`
+   - `decision.kind: "unsupported"`
+5. LobsterMind validates and normalizes that envelope.
+6. Only a validated capability request is submitted through the normal executor path.
 
 ## Configuration
 
@@ -77,7 +78,7 @@ The planner request contains:
 
 - the raw user intent
 - the model-facing tool catalog exported from the capability registry
-- the supported execution profiles
+- a trace id that must be echoed back
 - examples of valid request, clarification, refusal, and unsupported responses
 
 The provider writes a JSON schema to a temp directory, asks Codex for a single structured planning response, reads the last message back, parses it, and then deletes the temp files.
@@ -94,16 +95,21 @@ Possible brain response:
 
 ```json
 {
-  "kind": "request",
-  "request": {
-    "capability": "fs.read",
-    "input": {
-      "path": "README.md"
-    },
-    "requestedProfile": "readonly",
-    "metadata": {
-      "sourceCommand": "planner-runtime",
-      "note": "Read the README to inspect setup instructions"
+  "version": "planner-envelope.v1",
+  "traceId": "example-trace-id",
+  "diagnostics": [],
+  "decision": {
+    "kind": "request",
+    "request": {
+      "capability": "fs.read",
+      "input": {
+        "path": "README.md"
+      },
+      "requestedProfile": "readonly",
+      "metadata": {
+        "sourceCommand": "planner-runtime",
+        "note": "Read the README to inspect setup instructions"
+      }
     }
   }
 }
@@ -113,9 +119,14 @@ Clarification example:
 
 ```json
 {
-  "kind": "clarification",
-  "clarification": {
-    "text": "Which URL should I open?"
+  "version": "planner-envelope.v1",
+  "traceId": "example-trace-id",
+  "diagnostics": [],
+  "decision": {
+    "kind": "clarification",
+    "clarification": {
+      "text": "Which URL should I open?"
+    }
   }
 }
 ```
@@ -124,10 +135,15 @@ Unsupported example:
 
 ```json
 {
-  "kind": "unsupported",
-  "unsupported": {
-    "text": "I can only plan actions that map to the registered capability tools.",
-    "reason": "no_matching_tool"
+  "version": "planner-envelope.v1",
+  "traceId": "example-trace-id",
+  "diagnostics": [],
+  "decision": {
+    "kind": "unsupported",
+    "unsupported": {
+      "text": "I can only plan actions that map to the registered capability tools.",
+      "reason": "no_matching_tool"
+    }
   }
 }
 ```
@@ -147,6 +163,9 @@ Common failure cases:
 - `codex` is not installed or not on `PATH`
 - the local Codex session is not logged in
 - the provider returns invalid JSON
-- the model suggests an unsupported capability
+- the model suggests an unsupported capability or profile
+- the provider returns the wrong trace id or malformed envelope
 
 Those failures do not bypass policy or execution controls because the provider never executes actions directly.
+
+When the bridge returns malformed planner output that can be parsed but not trusted, LobsterMind converts that into a structured `unsupported` result with diagnostics. Transport or CLI failures still surface as provider errors, which lets the agent fall back honestly instead of pretending planning succeeded.

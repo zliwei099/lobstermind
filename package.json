@@ -10,7 +10,8 @@
     "start": "node --experimental-strip-types src/main.ts",
     "server": "node --experimental-strip-types src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "check": "node --experimental-strip-types src/cli.ts healthcheck"
+    "check": "node --experimental-strip-types src/cli.ts healthcheck",
+    "test": "node --experimental-strip-types --test src/**/*.test.ts"
   },
   "engines": {
     "node": ">=22"

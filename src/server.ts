@@ -55,8 +55,28 @@ export function createHttpServer(app = createApp()) {
 
     if (request.method === "GET" && url.pathname === "/planner/tools") {
       sendJson(response, 200, {
-        items: runtime.planner?.tools ?? []
+        plannerEnabled: Boolean(runtime.planner),
+        toolCatalog: runtime.planner?.toolCatalog ?? {
+          version: "planner-tools.v1",
+          items: []
+        }
       });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/planner/plan") {
+      if (!runtime.planner) {
+        sendJson(response, 404, { error: "Planner runtime is disabled." });
+        return;
+      }
+      const payload = (await readJsonBody(request)) as { intent?: string };
+      const intent = payload.intent?.trim();
+      if (!intent) {
+        sendJson(response, 400, { error: "Missing intent." });
+        return;
+      }
+      const envelope = await runtime.planner.inspect(intent);
+      sendJson(response, 200, envelope);
       return;
     }
 
