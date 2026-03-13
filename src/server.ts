@@ -44,8 +44,18 @@ export function createHttpServer(app = createApp()) {
         feishuMode: config.feishuMode,
         feishuLongConnectionMode: config.feishuLongConnectionMode,
         feishuLongConnectionAdapter: config.feishuLongConnectionAdapter,
+        brainEnabled: config.brainEnabled,
+        brainProvider: config.brainProvider,
+        brainModel: config.brainModel,
         allowedExecutionProfiles: config.allowedExecutionProfiles,
         capabilities: runtime.capabilities.list().map((capability) => capability.id)
+      });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/planner/tools") {
+      sendJson(response, 200, {
+        items: runtime.planner?.tools ?? []
       });
       return;
     }

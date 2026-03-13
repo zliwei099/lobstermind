@@ -7,7 +7,7 @@ export type ApprovalMode = "never" | "dangerous" | "always";
 export type FeishuMode = "off" | "webhook" | "long-connection" | "hybrid";
 export type FeishuLongConnectionMode = "off" | "stub" | "real";
 export type FeishuLongConnectionAdapter = "official" | "relay";
-export type BrainProvider = "codex" | "mock";
+export type BrainProvider = "codex-cli" | "mock";
 
 function parseDotEnv(contents: string): Record<string, string> {
   const entries: Record<string, string> = {};
@@ -101,10 +101,13 @@ function parseBoolean(input: string | undefined, fallback: boolean): boolean {
 }
 
 function normalizeBrainProvider(input?: string): BrainProvider {
-  if (input === "codex" || input === "mock") {
+  if (input === "mock") {
     return input;
   }
-  return "codex";
+  if (input === "codex" || input === "codex-cli") {
+    return "codex-cli";
+  }
+  return "codex-cli";
 }
 
 export interface AppConfig {

@@ -4,7 +4,34 @@ export interface Clarification {
   text: string;
 }
 
-export type BrainPlanResult =
+export interface Refusal {
+  text: string;
+  reason?: string;
+}
+
+export interface Unsupported {
+  text: string;
+  reason?: string;
+}
+
+export interface JsonSchema {
+  [key: string]: unknown;
+}
+
+export interface PlannerToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: JsonSchema;
+  supportedProfiles: string[];
+  defaultProfile: string;
+}
+
+export interface PlannerRuntimeRequest {
+  intent: string;
+  tools: PlannerToolDefinition[];
+}
+
+export type PlannerDecision =
   | {
       kind: "request";
       request: CapabilityRequest;
@@ -12,12 +39,25 @@ export type BrainPlanResult =
   | {
       kind: "clarification";
       clarification: Clarification;
+    }
+  | {
+      kind: "refusal";
+      refusal: Refusal;
+    }
+  | {
+      kind: "unsupported";
+      unsupported: Unsupported;
     };
 
-export interface Provider {
-  complete(prompt: string): Promise<string>;
+export interface PlannerProvider {
+  plan(request: PlannerRuntimeRequest): Promise<PlannerDecision>;
 }
 
-export interface Brain {
-  plan(intent: string): Promise<BrainPlanResult>;
+export interface PlannerRuntime {
+  readonly tools: PlannerToolDefinition[];
+  plan(intent: string): Promise<PlannerDecision>;
 }
+
+export type BrainPlanResult = PlannerDecision;
+export type Provider = PlannerProvider;
+export type Brain = PlannerRuntime;

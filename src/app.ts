@@ -16,7 +16,7 @@ import { createBuiltinCapabilityRegistry } from "./executor/builtin-capabilities
 import { ComputerActionExecutor } from "./executor/executor.ts";
 import { LobsterMindAgent } from "./agent/agent.ts";
 import type { AgentRuntime } from "./agent/runtime.ts";
-import { createBrain } from "./brain/index.ts";
+import { createPlannerRuntime } from "./brain/index.ts";
 
 export function createApp() {
   const config = loadConfig();
@@ -41,7 +41,7 @@ export function createApp() {
     audits,
     capabilities
   );
-  const brain = createBrain(config, capabilities);
+  const planner = createPlannerRuntime(config, capabilities);
 
   const runtime: AgentRuntime = {
     config,
@@ -51,7 +51,8 @@ export function createApp() {
     audits,
     capabilities,
     executor,
-    brain
+    planner,
+    brain: planner
   };
 
   for (const skill of createBuiltinSkills()) {

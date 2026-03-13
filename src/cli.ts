@@ -83,6 +83,7 @@ async function main(): Promise<void> {
       brainEnabled: runtime.config.brainEnabled,
       brainProvider: runtime.config.brainProvider,
       brainModel: runtime.config.brainModel,
+      plannerTools: runtime.planner?.tools ?? [],
       allowedExecutionProfiles: runtime.config.allowedExecutionProfiles,
       skills: runtime.skills.list().map((skill) => skill.name),
       capabilities: runtime.capabilities.list().map((capability) => capability.id)

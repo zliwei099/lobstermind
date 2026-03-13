@@ -1,11 +1,15 @@
-# Brain Layer With Codex OAuth
+# Experimental Codex CLI Planner Bridge
 
-LobsterMind now has a separate brain layer for planning natural-language requests that are too complex or ambiguous for the built-in rule matcher.
+LobsterMind now has a planner runtime for natural-language requests that are too complex or ambiguous for the built-in rule matcher.
 
-The brain does not execute actions. It only returns one of two structured outputs:
+This document describes the current Codex CLI bridge provider. It is implemented today, but it is experimental and should be treated as a temporary fallback rather than LobsterMind's long-term primary architecture.
+
+The planner runtime does not execute actions. It only returns structured planning outputs:
 
 - a `CapabilityRequest`
 - a clarification question
+- a refusal
+- an unsupported response
 
 Execution still goes through the existing capability registry, policy evaluation, approval queue, executor adapters, and audit log.
 
@@ -13,10 +17,12 @@ Execution still goes through the existing capability registry, policy evaluation
 
 1. User text enters the agent.
 2. `src/agent/planner.ts` runs the fast rule-based planner first.
-3. If no rule matches and `LOBSTERMIND_BRAIN_ENABLED=true`, LobsterMind calls the configured brain provider.
-4. The brain returns JSON for either:
-   - `action: "request"` with a structured capability request
-   - `action: "clarification"` with a follow-up question
+3. If no rule matches and `LOBSTERMIND_BRAIN_ENABLED=true`, LobsterMind calls the configured planner provider.
+4. The provider returns JSON for either:
+   - `kind: "request"` with a structured capability request
+   - `kind: "clarification"` with a follow-up question
+   - `kind: "refusal"`
+   - `kind: "unsupported"`
 5. The returned capability request is submitted through the normal executor path.
 
 ## Configuration
@@ -25,14 +31,16 @@ Add these variables to `.env`:
 
 ```dotenv
 LOBSTERMIND_BRAIN_ENABLED=true
-LOBSTERMIND_BRAIN_PROVIDER=codex
+LOBSTERMIND_BRAIN_PROVIDER=codex-cli
 LOBSTERMIND_BRAIN_MODEL=gpt-5.4
 ```
 
 Supported providers:
 
-- `codex`: calls the local `codex` CLI and uses its existing OAuth session
+- `codex-cli`: calls the local `codex` CLI and uses its existing OAuth session
 - `mock`: returns a deterministic clarification response for local testing
+
+`LOBSTERMIND_BRAIN_PROVIDER=codex` is still accepted as a backward-compatible alias and normalizes to `codex-cli`.
 
 The runtime also accepts an optional override:
 
@@ -44,7 +52,7 @@ That is only needed if the CLI binary is not on `PATH`.
 
 ## Codex OAuth setup
 
-The Codex provider does not use OpenAI API keys. It shells out to the local Codex CLI and relies on the login state already stored by that tool.
+The Codex CLI bridge does not use OpenAI API keys directly. It shells out to the local Codex CLI and relies on the login state already stored by that tool.
 
 Typical setup:
 
@@ -55,9 +63,9 @@ codex exec --model gpt-5.4 "Reply with a short JSON object."
 
 If the second command works from your terminal, LobsterMind can usually use the same OAuth session.
 
-## Provider behavior
+## Bridge behavior
 
-The Codex provider currently runs:
+The experimental bridge currently runs:
 
 - `codex exec`
 - `--model <LOBSTERMIND_BRAIN_MODEL>`
@@ -65,14 +73,14 @@ The Codex provider currently runs:
 - `--output-schema <temp schema file>`
 - `--output-last-message <temp output file>`
 
-The planner prompt contains:
+The planner request contains:
 
 - the raw user intent
-- the list of registered capabilities
+- the model-facing tool catalog exported from the capability registry
 - the supported execution profiles
-- examples of valid request and clarification responses
+- examples of valid request, clarification, refusal, and unsupported responses
 
-The provider writes a JSON schema to a temp directory, asks Codex for a single structured response, reads the last message back, parses it, and then deletes the temp files.
+The provider writes a JSON schema to a temp directory, asks Codex for a single structured planning response, reads the last message back, parses it, and then deletes the temp files.
 
 ## Example
 
@@ -86,7 +94,7 @@ Possible brain response:
 
 ```json
 {
-  "action": "request",
+  "kind": "request",
   "request": {
     "capability": "fs.read",
     "input": {
@@ -94,7 +102,7 @@ Possible brain response:
     },
     "requestedProfile": "readonly",
     "metadata": {
-      "sourceCommand": "brain",
+      "sourceCommand": "planner-runtime",
       "note": "Read the README to inspect setup instructions"
     }
   }
@@ -105,18 +113,30 @@ Clarification example:
 
 ```json
 {
-  "action": "clarification",
+  "kind": "clarification",
   "clarification": {
     "text": "Which URL should I open?"
   }
 }
 ```
 
+Unsupported example:
+
+```json
+{
+  "kind": "unsupported",
+  "unsupported": {
+    "text": "I can only plan actions that map to the registered capability tools.",
+    "reason": "no_matching_tool"
+  }
+}
+```
+
 ## Failure handling
 
-If the brain is disabled, LobsterMind behaves exactly as before.
+If the planner runtime is disabled, LobsterMind behaves exactly as before.
 
-If the brain is enabled but unavailable, LobsterMind:
+If the planner runtime is enabled but unavailable, LobsterMind:
 
 - logs a warning
 - skips direct execution
@@ -129,4 +149,4 @@ Common failure cases:
 - the provider returns invalid JSON
 - the model suggests an unsupported capability
 
-Those failures do not bypass policy or execution controls because the brain never executes actions directly.
+Those failures do not bypass policy or execution controls because the provider never executes actions directly.

@@ -47,6 +47,8 @@ The executor now does the same sequence for every capability:
 
 The natural-language layer sits above this. It does not execute anything itself. It only maps some Chinese and English phrases into the same structured requests that `/action` can submit.
 
+The planner runtime now also exports a model-facing tool catalog from this registry so model providers can plan against the same capability surface the executor trusts.
+
 ## Execution profiles
 
 Profiles are coarse permission buckets. They are not a real OS sandbox.
@@ -111,6 +113,15 @@ The planner is intentionally small and inspectable:
 - it converts them into a single structured capability request
 - it asks a clarification question when a required path, app name, pid, or command is missing
 - it never sends raw shell text to the OS
+
+When the optional planner runtime is enabled, model providers receive the exported tool catalog for the same capabilities. They can only return:
+
+- one structured capability request
+- a clarification
+- a refusal
+- an unsupported result
+
+That keeps model-side planning separate from machine-side execution.
 
 Examples of planner output:
 

@@ -5,7 +5,7 @@ LobsterMind (`龙虾参谋`) is a realistic MVP for a personal agent that can:
 - remember notes in a local memory store,
 - register and expose skills,
 - receive inbound messages through a Feishu long-connection runtime, webhook, or local CLI,
-- map common natural-language requests into structured capability requests with a rule-first planner plus optional Codex brain fallback,
+- map common natural-language requests into structured capability requests with a rule-first planner plus optional planner-runtime provider fallback,
 - request computer actions through a capability registry, policy-driven executor, approval queue, and audit log.
 
 This repository intentionally avoids fake autonomous "computer use". Actions go through explicit capability definitions, profile-aware policy checks, adapter dispatch, a persisted approval queue, and an audit trail.
@@ -108,22 +108,33 @@ npm run cli -- message user-1 "kill process 12345"
 
 If a key argument is missing, the planner asks a clarification question instead of guessing.
 
-## Brain layer
+## Planner runtime
 
-The optional brain layer lets LobsterMind call the local Codex CLI through its existing OAuth session and ask `gpt-5.4` to plan a structured capability request.
+The optional planner runtime is the model-facing planning layer for requests that miss the local rule matcher.
 
-Key design constraints:
+Current architecture:
 
-- the brain only plans, never executes
-- output must be structured JSON
-- all execution still flows through the capability protocol, policy checks, approvals, and audit log
-- if the brain is disabled or unavailable, LobsterMind still runs with the rule-based planner alone
+- the planner runtime exports a model-facing tool catalog from the capability registry
+- a provider adapter turns user intent plus that tool catalog into one structured planning decision
+- execution still happens only through the capability protocol, policy checks, approvals, adapters, and audit log
+- if the planner runtime is disabled or unavailable, LobsterMind still runs with the rule-based planner alone
+
+Implemented today:
+
+- `mock`: deterministic local testing provider
+- `codex-cli`: experimental bridge that shells out to the local Codex CLI and asks it for one structured planning decision
+
+Not implemented today:
+
+- a direct official GPT-5.4 runtime/provider integration
+
+The Codex CLI bridge is useful as a fallback and development aid, but it is not the intended long-term primary path.
 
 Config:
 
 ```dotenv
 LOBSTERMIND_BRAIN_ENABLED=true
-LOBSTERMIND_BRAIN_PROVIDER=codex
+LOBSTERMIND_BRAIN_PROVIDER=codex-cli
 LOBSTERMIND_BRAIN_MODEL=gpt-5.4
 ```
 
@@ -135,7 +146,8 @@ LOBSTERMIND_BRAIN_PROVIDER=mock
 
 Setup and examples:
 
-- Brain + Codex OAuth guide: [docs/brain-codex.md](/Users/levy/.openclaw/workspace/lobstermind/docs/brain-codex.md)
+- Planner runtime architecture: [docs/planner-runtime.md](/Users/levy/.openclaw/workspace/lobstermind/docs/planner-runtime.md)
+- Codex CLI bridge guide: [docs/brain-codex.md](/Users/levy/.openclaw/workspace/lobstermind/docs/brain-codex.md)
 
 ## Feishu long connection
 
@@ -195,6 +207,7 @@ See the full setup guide here:
 The optional HTTP server exposes:
 
 - `GET /health`
+- `GET /planner/tools`
 - `POST /feishu/webhook`
 - `POST /agent/messages`
 - `GET /approvals`
@@ -343,6 +356,7 @@ npm run build
 - Long-connection design note: [docs/feishu-long-connection.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-long-connection.md)
 - Capability protocol: [docs/capability-protocol.md](/Users/levy/.openclaw/workspace/lobstermind/docs/capability-protocol.md)
 - Brain + Codex OAuth: [docs/brain-codex.md](/Users/levy/.openclaw/workspace/lobstermind/docs/brain-codex.md)
+- Planner runtime architecture: [docs/planner-runtime.md](/Users/levy/.openclaw/workspace/lobstermind/docs/planner-runtime.md)
 - Real Feishu setup: [docs/feishu-real-setup.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-real-setup.md)
 
 ## Docs

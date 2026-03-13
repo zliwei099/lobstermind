@@ -38,12 +38,23 @@ export class LobsterMindAgent {
       return submitCapability(this.runtime, message.senderId, planned.request);
     }
 
-    if (this.runtime.brain) {
+    const planner = this.runtime.planner ?? this.runtime.brain;
+    if (planner) {
       try {
-        const brainPlan = await this.runtime.brain.plan(message.text);
+        const brainPlan = await planner.plan(message.text);
         if (brainPlan.kind === "clarification") {
           return {
             text: brainPlan.clarification.text
+          };
+        }
+        if (brainPlan.kind === "refusal") {
+          return {
+            text: brainPlan.refusal.text
+          };
+        }
+        if (brainPlan.kind === "unsupported") {
+          return {
+            text: brainPlan.unsupported.text
           };
         }
         return submitCapability(this.runtime, message.senderId, brainPlan.request);

@@ -11,11 +11,14 @@ export function formatSkills(skills: Skill[]): string {
 }
 
 export function formatCapabilities(runtime: AgentRuntime): string {
+  const tools = runtime.planner?.tools ?? [];
   return runtime.capabilities
     .list()
     .map((capability) => {
       const profiles = capability.supportedProfiles.join(", ");
-      return `- ${capability.id}: ${capability.description} [profiles: ${profiles}]`;
+      const tool = tools.find((item) => item.name === capability.id);
+      const schema = tool ? ` [tool schema: yes]` : "";
+      return `- ${capability.id}: ${capability.description} [profiles: ${profiles}]${schema}`;
     })
     .join("\n");
 }
