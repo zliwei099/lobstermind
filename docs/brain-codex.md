@@ -2,7 +2,7 @@
 
 LobsterMind now has a planner runtime for natural-language requests that are too complex or ambiguous for the built-in rule matcher.
 
-This document describes the current Codex CLI bridge provider. It is implemented today, but it is experimental and should be treated as a temporary fallback rather than LobsterMind's long-term primary architecture.
+This document describes the current Codex CLI bridge runtime implementation. It is implemented today, but it is experimental and should be treated as a temporary fallback rather than LobsterMind's long-term primary architecture.
 
 The planner runtime does not execute actions. It only returns structured planning outputs inside a provider-neutral `planner-envelope.v1`:
 
@@ -17,8 +17,8 @@ Execution still goes through the existing capability registry, policy evaluation
 
 1. User text enters the agent.
 2. `src/agent/planner.ts` runs the fast rule-based planner first.
-3. If no rule matches and `LOBSTERMIND_BRAIN_ENABLED=true`, LobsterMind calls the configured planner provider.
-4. The provider returns JSON for either:
+3. If no rule matches and `LOBSTERMIND_PLANNER_ENABLED=true`, LobsterMind calls the configured planner runtime implementation.
+4. The runtime implementation returns JSON for either:
    - `decision.kind: "request"` with a structured capability request
    - `decision.kind: "clarification"` with a follow-up question
    - `decision.kind: "refusal"`
@@ -31,25 +31,33 @@ Execution still goes through the existing capability registry, policy evaluation
 Add these variables to `.env`:
 
 ```dotenv
-LOBSTERMIND_BRAIN_ENABLED=true
-LOBSTERMIND_BRAIN_PROVIDER=codex-cli
-LOBSTERMIND_BRAIN_MODEL=gpt-5.4
+LOBSTERMIND_PLANNER_ENABLED=true
+LOBSTERMIND_PLANNER_MODEL_REF=openai-codex/gpt-5.4
+LOBSTERMIND_PLANNER_RUNTIME_API=experimental-codex-cli-bridge
 ```
 
-Supported providers:
+Implemented runtime targets:
 
-- `codex-cli`: calls the local `codex` CLI and uses its existing OAuth session
-- `mock`: returns a deterministic clarification response for local testing
+- `openai-codex/gpt-5.4` plus `experimental-codex-cli-bridge`: calls the local `codex` CLI and uses its existing OAuth session
+- `mock/mock` plus `mock`: returns a deterministic clarification response for local testing
 
-`LOBSTERMIND_BRAIN_PROVIDER=codex` is still accepted as a backward-compatible alias and normalizes to `codex-cli`.
+Backward-compatible `LOBSTERMIND_BRAIN_PROVIDER=codex` is still accepted and normalizes to the planner target above.
 
 The runtime also accepts an optional override:
 
 ```dotenv
-LOBSTERMIND_BRAIN_CODEX_COMMAND=codex
+LOBSTERMIND_PLANNER_CODEX_COMMAND=codex
 ```
 
 That is only needed if the CLI binary is not on `PATH`.
+
+Optional auth-profile selection:
+
+```dotenv
+LOBSTERMIND_PLANNER_AUTH_PROFILE=codex-default
+```
+
+Auth profiles live in `data/auth-profiles.json`. Current scope is just record storage plus default lookup by provider; it does not implement token refresh or secure secret storage yet.
 
 ## Codex OAuth setup
 
@@ -62,7 +70,7 @@ codex login
 codex exec --model gpt-5.4 "Reply with a short JSON object."
 ```
 
-If the second command works from your terminal, LobsterMind can usually use the same OAuth session.
+If the second command works from your terminal, LobsterMind can usually use the same OAuth session. The current bridge still relies on Codex CLI's own local auth state even if a LobsterMind auth profile exists for `openai-codex`.
 
 ## Bridge behavior
 

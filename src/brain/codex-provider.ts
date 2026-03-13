@@ -3,12 +3,19 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { normalizePlannerEnvelope } from "./planning-envelope.ts";
+import type { AuthProfileRecord } from "../auth/auth-profile-store.ts";
 import type { PlannerEnvelope, PlannerProvider, PlannerRuntimeRequest } from "./types.ts";
 
 export interface CodexCliBridgeProviderOptions {
   command: string;
-  model: string;
   workspaceRoot: string;
+  target: {
+    providerId: "openai-codex";
+    modelRef: string;
+    modelId: string;
+    runtimeApiKind: "experimental-codex-cli-bridge";
+  };
+  authProfile?: AuthProfileRecord;
 }
 
 export class CodexProviderError extends Error {
@@ -145,22 +152,28 @@ function summarizeCodexFailure(stderr: string, exitCode: number | null): string 
 }
 
 export class CodexCliBridgeProvider implements PlannerProvider {
-  readonly descriptor = {
-    id: "codex-cli",
-    label: "Codex CLI bridge",
-    transport: "cli-bridge",
-    experimental: true,
-    supportsToolCalling: false
-  } as const;
+  readonly descriptor;
 
   private readonly command: string;
-  private readonly model: string;
+  private readonly target: CodexCliBridgeProviderOptions["target"];
   private readonly workspaceRoot: string;
+  private readonly authProfile?: AuthProfileRecord;
 
   constructor(options: CodexCliBridgeProviderOptions) {
     this.command = options.command;
-    this.model = options.model;
+    this.target = options.target;
     this.workspaceRoot = options.workspaceRoot;
+    this.authProfile = options.authProfile;
+    this.descriptor = {
+      id: options.target.runtimeApiKind,
+      label: "Codex CLI bridge",
+      transport: "cli-bridge",
+      experimental: true,
+      supportsToolCalling: false,
+      providerId: options.target.providerId,
+      modelRef: options.target.modelRef,
+      runtimeApiKind: options.target.runtimeApiKind
+    } as const;
   }
 
   async plan(request: PlannerRuntimeRequest): Promise<PlannerEnvelope> {
@@ -199,6 +212,10 @@ export class CodexCliBridgeProvider implements PlannerProvider {
       "All execution happens later in LobsterMind's policy, approval, and audit controlled executor.",
       "Return a planner-envelope.v1 JSON object only and follow the provided schema exactly.",
       "Use only the listed tool names.",
+      `Configured runtime target: ${this.target.modelRef} via ${this.target.runtimeApiKind}.`,
+      this.authProfile
+        ? `Auth profile context: ${this.authProfile.id} (${this.authProfile.mode}) for provider ${this.authProfile.provider}.`
+        : "Auth profile context: no LobsterMind auth profile selected; rely on the local Codex CLI session.",
       `Copy this traceId exactly into the response: ${request.context.traceId}`,
       "If a required argument is missing, return kind=clarification.",
       "If the user is asking for something LobsterMind should not do, return kind=refusal.",
@@ -257,7 +274,7 @@ export class CodexCliBridgeProvider implements PlannerProvider {
     const args = [
       "exec",
       "--model",
-      this.model,
+      this.target.modelId,
       "--sandbox",
       "read-only",
       "--skip-git-repo-check",

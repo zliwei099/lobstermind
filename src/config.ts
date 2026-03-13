@@ -2,12 +2,18 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import type { ExecutionProfile } from "./executor/types.ts";
+import {
+  normalizePlannerRuntimeTarget,
+  type NormalizedProviderId,
+  type PlannerRuntimeApiKind,
+  type PlannerRuntimeTarget
+} from "./brain/runtime-target.ts";
 
 export type ApprovalMode = "never" | "dangerous" | "always";
 export type FeishuMode = "off" | "webhook" | "long-connection" | "hybrid";
 export type FeishuLongConnectionMode = "off" | "stub" | "real";
 export type FeishuLongConnectionAdapter = "official" | "relay";
-export type BrainProvider = "codex-cli" | "mock";
+export type BrainProvider = "codex-cli" | "mock" | NormalizedProviderId;
 
 function parseDotEnv(contents: string): Record<string, string> {
   const entries: Record<string, string> = {};
@@ -100,14 +106,14 @@ function parseBoolean(input: string | undefined, fallback: boolean): boolean {
   return input === "true";
 }
 
-function normalizeBrainProvider(input?: string): BrainProvider {
-  if (input === "mock") {
-    return input;
+function legacyBrainProviderFromTarget(target: PlannerRuntimeTarget): BrainProvider {
+  if (target.providerId === "mock") {
+    return "mock";
   }
-  if (input === "codex" || input === "codex-cli") {
+  if (target.runtimeApiKind === "experimental-codex-cli-bridge") {
     return "codex-cli";
   }
-  return "codex-cli";
+  return target.providerId;
 }
 
 export interface AppConfig {
@@ -133,6 +139,12 @@ export interface AppConfig {
   shellEnvAllowlist: string[];
   workspaceRoot: string;
   allowedExecutionProfiles: ExecutionProfile[];
+  plannerEnabled: boolean;
+  plannerTarget: PlannerRuntimeTarget;
+  plannerRuntimeApiKind: PlannerRuntimeApiKind;
+  plannerModelRef: string;
+  plannerAuthProfileId?: string;
+  plannerCodexCommand: string;
   brainEnabled: boolean;
   brainProvider: BrainProvider;
   brainModel: string;
@@ -140,6 +152,20 @@ export interface AppConfig {
 }
 
 export function loadConfig(): AppConfig {
+  const plannerTarget = normalizePlannerRuntimeTarget({
+    modelRef: process.env.LOBSTERMIND_PLANNER_MODEL_REF,
+    provider: process.env.LOBSTERMIND_PLANNER_PROVIDER,
+    model: process.env.LOBSTERMIND_PLANNER_MODEL,
+    runtimeApiKind: process.env.LOBSTERMIND_PLANNER_RUNTIME_API,
+    authProfileId: process.env.LOBSTERMIND_PLANNER_AUTH_PROFILE,
+    legacyBrainProvider: process.env.LOBSTERMIND_BRAIN_PROVIDER,
+    legacyBrainModel: process.env.LOBSTERMIND_BRAIN_MODEL
+  });
+  const plannerEnabled = parseBoolean(
+    process.env.LOBSTERMIND_PLANNER_ENABLED ?? process.env.LOBSTERMIND_BRAIN_ENABLED,
+    false
+  );
+
   return {
     host: process.env.LOBSTERMIND_HOST || "127.0.0.1",
     port: Number(process.env.LOBSTERMIND_PORT ?? 8787),
@@ -163,9 +189,21 @@ export function loadConfig(): AppConfig {
     shellEnvAllowlist: parseList(process.env.LOBSTERMIND_SHELL_ENV_ALLOWLIST, "PATH,HOME,TMPDIR"),
     workspaceRoot: path.resolve(process.cwd()),
     allowedExecutionProfiles: parseProfiles(process.env.LOBSTERMIND_ALLOWED_EXECUTION_PROFILES),
-    brainEnabled: parseBoolean(process.env.LOBSTERMIND_BRAIN_ENABLED, false),
-    brainProvider: normalizeBrainProvider(process.env.LOBSTERMIND_BRAIN_PROVIDER),
-    brainModel: process.env.LOBSTERMIND_BRAIN_MODEL || "gpt-5.4",
-    brainCodexCommand: process.env.LOBSTERMIND_BRAIN_CODEX_COMMAND || "codex"
+    plannerEnabled,
+    plannerTarget,
+    plannerRuntimeApiKind: plannerTarget.runtimeApiKind,
+    plannerModelRef: plannerTarget.modelRef,
+    plannerAuthProfileId: plannerTarget.authProfileId,
+    plannerCodexCommand:
+      process.env.LOBSTERMIND_PLANNER_CODEX_COMMAND ||
+      process.env.LOBSTERMIND_BRAIN_CODEX_COMMAND ||
+      "codex",
+    brainEnabled: plannerEnabled,
+    brainProvider: legacyBrainProviderFromTarget(plannerTarget),
+    brainModel: plannerTarget.modelId,
+    brainCodexCommand:
+      process.env.LOBSTERMIND_PLANNER_CODEX_COMMAND ||
+      process.env.LOBSTERMIND_BRAIN_CODEX_COMMAND ||
+      "codex"
   };
 }

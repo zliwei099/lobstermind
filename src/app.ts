@@ -17,9 +17,11 @@ import { ComputerActionExecutor } from "./executor/executor.ts";
 import { LobsterMindAgent } from "./agent/agent.ts";
 import type { AgentRuntime } from "./agent/runtime.ts";
 import { createPlannerRuntime } from "./brain/index.ts";
+import { AuthProfileStore } from "./auth/auth-profile-store.ts";
 
 export function createApp() {
   const config = loadConfig();
+  const authProfiles = new AuthProfileStore(config.dataDir);
   const memory = new FileMemoryStore(config.dataDir);
   const approvals = new ApprovalStore(config.dataDir);
   const audits = new AuditStore(config.dataDir);
@@ -41,10 +43,11 @@ export function createApp() {
     audits,
     capabilities
   );
-  const planner = createPlannerRuntime(config, capabilities);
+  const planner = createPlannerRuntime(config, capabilities, authProfiles);
 
   const runtime: AgentRuntime = {
     config,
+    authProfiles,
     memory,
     skills,
     approvals,

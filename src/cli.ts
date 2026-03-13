@@ -16,6 +16,7 @@ async function main(): Promise<void> {
       "  npm run cli -- planner-plan <text>",
       "  npm run cli -- approvals",
       "  npm run cli -- audits",
+      "  npm run cli -- auth-profiles",
       "  npm run cli -- approve <approval-id>",
       "  npm run cli -- reject <approval-id>",
       "  npm run cli -- feishu-stub <senderId> <text>",
@@ -66,6 +67,11 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "auth-profiles") {
+    console.log(JSON.stringify(runtime.authProfiles.inspect(), null, 2));
+    return;
+  }
+
   if (command === "approve") {
     const [id] = rest;
     if (!id) {
@@ -99,9 +105,15 @@ async function main(): Promise<void> {
       feishuMode: runtime.config.feishuMode,
       feishuLongConnectionMode: runtime.config.feishuLongConnectionMode,
       feishuLongConnectionAdapter: runtime.config.feishuLongConnectionAdapter,
+      plannerEnabled: runtime.config.plannerEnabled,
+      plannerModelRef: runtime.config.plannerModelRef,
+      plannerRuntimeApiKind: runtime.config.plannerRuntimeApiKind,
+      plannerTarget: runtime.config.plannerTarget,
+      plannerAuthProfileId: runtime.config.plannerAuthProfileId,
       brainEnabled: runtime.config.brainEnabled,
       brainProvider: runtime.config.brainProvider,
       brainModel: runtime.config.brainModel,
+      authProfiles: runtime.authProfiles.inspect(),
       plannerTools: runtime.planner?.toolCatalog ?? { version: "planner-tools.v1", items: [] },
       allowedExecutionProfiles: runtime.config.allowedExecutionProfiles,
       skills: runtime.skills.list().map((skill) => skill.name),

@@ -6,7 +6,10 @@ export class MockProvider implements PlannerProvider {
     label: "Mock planner provider",
     transport: "mock",
     experimental: false,
-    supportsToolCalling: false
+    supportsToolCalling: false,
+    providerId: "mock",
+    modelRef: "mock/mock",
+    runtimeApiKind: "mock"
   } as const;
 
   async plan(request: PlannerRuntimeRequest): Promise<PlannerEnvelope> {
@@ -17,7 +20,7 @@ export class MockProvider implements PlannerProvider {
       decision: {
         kind: "clarification",
         clarification: {
-          text: "The mock planner provider is enabled. Set LOBSTERMIND_BRAIN_PROVIDER=codex-cli to use the experimental Codex CLI bridge."
+          text: "The mock planner provider is enabled. Set LOBSTERMIND_PLANNER_MODEL_REF=openai-codex/gpt-5.4 to use the experimental Codex CLI bridge."
         }
       },
       diagnostics: [

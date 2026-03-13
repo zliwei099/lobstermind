@@ -44,10 +44,16 @@ export function createHttpServer(app = createApp()) {
         feishuMode: config.feishuMode,
         feishuLongConnectionMode: config.feishuLongConnectionMode,
         feishuLongConnectionAdapter: config.feishuLongConnectionAdapter,
+        plannerEnabled: config.plannerEnabled,
+        plannerModelRef: config.plannerModelRef,
+        plannerRuntimeApiKind: config.plannerRuntimeApiKind,
+        plannerTarget: config.plannerTarget,
+        plannerAuthProfileId: config.plannerAuthProfileId,
         brainEnabled: config.brainEnabled,
         brainProvider: config.brainProvider,
         brainModel: config.brainModel,
         allowedExecutionProfiles: config.allowedExecutionProfiles,
+        authProfiles: runtime.authProfiles.inspect(),
         capabilities: runtime.capabilities.list().map((capability) => capability.id)
       });
       return;

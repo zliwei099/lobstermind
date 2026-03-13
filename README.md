@@ -122,35 +122,47 @@ Current architecture:
 
 Implemented today:
 
-- `mock`: deterministic local testing provider
-- `codex-cli`: experimental bridge that shells out to the local Codex CLI and asks it for one structured planning envelope
+- `mock`: deterministic local testing runtime target
+- `openai-codex/gpt-5.4` via `experimental-codex-cli-bridge`: experimental bridge that shells out to the local Codex CLI and asks it for one structured planning envelope
 
 Not implemented today:
 
-- a direct official GPT-5.4 runtime/provider integration
+- native `openai-responses`
+- native `openai-codex-responses`
 
 The Codex CLI bridge is useful as a fallback and development aid, but it is not the intended long-term primary path.
 
 Config:
 
 ```dotenv
-LOBSTERMIND_BRAIN_ENABLED=true
-LOBSTERMIND_BRAIN_PROVIDER=codex-cli
-LOBSTERMIND_BRAIN_MODEL=gpt-5.4
+LOBSTERMIND_PLANNER_ENABLED=true
+LOBSTERMIND_PLANNER_MODEL_REF=openai-codex/gpt-5.4
+LOBSTERMIND_PLANNER_RUNTIME_API=experimental-codex-cli-bridge
 ```
 
 For local testing without Codex, use:
 
 ```dotenv
-LOBSTERMIND_BRAIN_PROVIDER=mock
+LOBSTERMIND_PLANNER_MODEL_REF=mock/mock
 ```
+
+Backward-compatible `LOBSTERMIND_BRAIN_*` variables are still accepted and normalize into the planner target config above.
+
+Minimal auth-profile groundwork now exists at `data/auth-profiles.json`. Current scope is intentionally small:
+
+- plain JSON records with `provider` plus `mode` of `api_key`, `oauth`, or `token`
+- optional default-profile lookup per provider
+- no token refresh, sync, or secret-management abstraction yet
+
+Inspection helpers:
+
+- `npm run cli -- auth-profiles`
+- `npm run cli -- healthcheck`
 
 Setup and examples:
 
 - Planner runtime architecture: [docs/planner-runtime.md](/Users/levy/.openclaw/workspace/lobstermind/docs/planner-runtime.md)
 - Codex CLI bridge guide: [docs/brain-codex.md](/Users/levy/.openclaw/workspace/lobstermind/docs/brain-codex.md)
-
-Inspection helpers:
 
 ```bash
 npm run cli -- planner-tools

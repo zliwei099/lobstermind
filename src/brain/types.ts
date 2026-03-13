@@ -1,4 +1,5 @@
 import type { CapabilityRequest } from "../executor/types.ts";
+import type { PlannerRuntimeApiKind, NormalizedProviderId } from "./runtime-target.ts";
 
 export interface Clarification {
   text: string;
@@ -65,6 +66,9 @@ export interface PlannerProviderDescriptor {
   transport: "mock" | "cli-bridge" | "native-runtime";
   experimental: boolean;
   supportsToolCalling: boolean;
+  providerId: NormalizedProviderId;
+  modelRef: string;
+  runtimeApiKind: PlannerRuntimeApiKind;
 }
 
 export interface PlannerDiagnostic {

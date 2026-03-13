@@ -8,7 +8,10 @@ const descriptor: PlannerProviderDescriptor = {
   label: "Test provider",
   transport: "native-runtime",
   experimental: false,
-  supportsToolCalling: true
+  supportsToolCalling: true,
+  providerId: "openai",
+  modelRef: "openai/gpt-5.4",
+  runtimeApiKind: "openai-responses"
 };
 
 const request: PlannerRuntimeRequest = {

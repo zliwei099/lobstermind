@@ -6,9 +6,11 @@ import { AuditStore } from "../executor/audit-store.ts";
 import { CapabilityRegistry } from "../executor/capability-registry.ts";
 import { ComputerActionExecutor } from "../executor/executor.ts";
 import type { Brain, PlannerRuntime } from "../brain/types.ts";
+import { AuthProfileStore } from "../auth/auth-profile-store.ts";
 
 export interface AgentRuntime {
   config: AppConfig;
+  authProfiles: AuthProfileStore;
   memory: MemoryStore;
   skills: SkillRegistry;
   approvals: ApprovalStore;
