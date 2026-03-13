@@ -10,6 +10,8 @@ import { MacOpenUrlAdapter } from "./executor/adapters/mac-open-url-adapter.ts";
 import { MacAppleScriptAdapter } from "./executor/adapters/mac-applescript-adapter.ts";
 import { LocalFsAdapter } from "./executor/adapters/local-fs-adapter.ts";
 import { MacFrontmostAppAdapter } from "./executor/adapters/mac-frontmost-app-adapter.ts";
+import { MacScreenshotAdapter } from "./executor/adapters/mac-screenshot-adapter.ts";
+import { LocalProcessAdapter } from "./executor/adapters/local-process-adapter.ts";
 import { createBuiltinCapabilityRegistry } from "./executor/builtin-capabilities.ts";
 import { ComputerActionExecutor } from "./executor/executor.ts";
 import { LobsterMindAgent } from "./agent/agent.ts";
@@ -28,7 +30,9 @@ export function createApp() {
     new MacOpenUrlAdapter(),
     new MacAppleScriptAdapter(),
     new LocalFsAdapter(),
-    new MacFrontmostAppAdapter()
+    new MacFrontmostAppAdapter(),
+    new MacScreenshotAdapter(config.dataDir),
+    new LocalProcessAdapter(config.dataDir, config.shellTimeoutMs)
   );
   const executor = new ComputerActionExecutor(
     config,

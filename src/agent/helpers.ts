@@ -2,6 +2,7 @@ import type { AuditEntry, ApprovalRequest, CapabilityRequest } from "../executor
 import type { MemoryEntry } from "../memory/memory-store.ts";
 import type { Skill } from "../skills/skill.ts";
 import type { AgentRuntime } from "./runtime.ts";
+import type { AgentResponse } from "../types.ts";
 
 export function formatSkills(skills: Skill[]): string {
   return skills
@@ -61,4 +62,22 @@ export function formatAudits(runtime: AgentRuntime, items: AuditEntry[]): string
       return `- [${item.id}] ${item.event} ${item.capability} (${item.profile}, ${item.risk}) -> ${formatAction(runtime, item.request)}${result}`;
     })
     .join("\n");
+}
+
+export async function submitCapability(runtime: AgentRuntime, senderId: string, request: CapabilityRequest): Promise<AgentResponse> {
+  const decision = await runtime.executor.submit(senderId, request);
+  if (decision.state === "denied") {
+    return {
+      text: `Denied ${formatAction(runtime, request)}.\nReason: ${decision.reason ?? "Policy denied the request."}`
+    };
+  }
+  if (decision.state === "pending_approval" && decision.approval) {
+    return {
+      text: `Approval required for ${formatAction(runtime, request)}.\nApproval ID: ${decision.approval.id}\nProfile: ${decision.approval.profile}\nReason: ${decision.approval.reason}`
+    };
+  }
+  return {
+    text: `Executed ${formatAction(runtime, request)}.\n${decision.result?.output ?? ""}`.trim(),
+    data: decision.result?.data
+  };
 }

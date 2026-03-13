@@ -5,6 +5,7 @@ LobsterMind (`龙虾参谋`) is a realistic MVP for a personal agent that can:
 - remember notes in a local memory store,
 - register and expose skills,
 - receive inbound messages through a Feishu long-connection runtime, webhook, or local CLI,
+- map common natural-language requests into structured capability requests,
 - request computer actions through a capability registry, policy-driven executor, approval queue, and audit log.
 
 This repository intentionally avoids fake autonomous "computer use". Actions go through explicit capability definitions, profile-aware policy checks, adapter dispatch, a persisted approval queue, and an audit trail.
@@ -82,6 +83,24 @@ npm run cli -- approvals
 npm run cli -- audits
 npm run cli -- approve <approval-id>
 ```
+
+## Natural-language planner
+
+Free-form messages now go through a lightweight rule-based planner before falling back to memory search. The planner only emits structured capability requests; execution still goes through the same policy, approval, and audit pipeline as `/action`.
+
+Examples:
+
+```bash
+npm run cli -- message user-1 "read file README.md"
+npm run cli -- message user-1 "列出当前目录文件"
+npm run cli -- message user-1 'append "hello" to "data/notes.txt"'
+npm run cli -- message user-1 '创建目录 "tmp/demo"'
+npm run cli -- message user-1 "take a screenshot"
+npm run cli -- message user-1 '后台运行 "python3 -m http.server 8000"'
+npm run cli -- message user-1 "kill process 12345"
+```
+
+If a key argument is missing, the planner asks a clarification question instead of guessing.
 
 ## Feishu long connection
 
@@ -211,16 +230,27 @@ Built-in capabilities are explicit:
 - `mac.applescript`
 - `fs.read`
 - `fs.write`
+- `fs.list`
+- `fs.stat`
+- `fs.append`
+- `fs.mkdir`
 - `os.frontmost_app`
+- `os.screenshot`
+- `process.run`
+- `process.run_background`
+- `process.list`
+- `process.kill`
 
 Risk controls in this MVP:
 
 - structured shell execution with `command`, `argv`, optional `cwd`, and optional env subset
+- natural-language planning limited to explicit, inspectable rules and structured request emission
 - capability-specific policy evaluation before adapter execution
 - allowlist-based shell execution by base command with a timeout
 - profile-aware gating for readonly, workspace-write, desktop-safe, and dangerous operations
 - browser URL opening separated from shell execution
-- workspace/data-root enforcement for `fs.read` and `fs.write`
+- workspace/data-root enforcement for file writes, appends, mkdir, and screenshot output paths
+- process execution split from `shell.exec`, with background runs and kill paths kept approval-gated
 - AppleScript always classified as high risk
 - persisted approval records before dangerous execution
 - append-only audit entries for requests and policy/execution outcomes

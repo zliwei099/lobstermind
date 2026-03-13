@@ -92,3 +92,58 @@ export function classifyShellRisk(
     reason: `Command "${request.input.command}" is allowlisted and uses the default execution context.`
   };
 }
+
+export function classifyProcessRisk(
+  request: Extract<CapabilityRequest, { capability: "process.run" | "process.run_background" }>,
+  config: AppConfig
+): { risk: RiskLevel; reason: string } {
+  if (!request.input.command.trim()) {
+    return {
+      risk: "high",
+      reason: "A process command is required."
+    };
+  }
+
+  if (request.input.cwd && !isPathInRoots(request.input.cwd, getWritableRoots(config))) {
+    return {
+      risk: "high",
+      reason: `cwd "${request.input.cwd}" is outside the workspace/data roots.`
+    };
+  }
+
+  const envKeys = Object.keys(request.input.env ?? {});
+  const disallowedKey = envKeys.find((key) => !config.shellEnvAllowlist.includes(key));
+  if (disallowedKey) {
+    return {
+      risk: "high",
+      reason: `Environment key "${disallowedKey}" is not in the allowed process env subset.`
+    };
+  }
+
+  const base = path.basename(request.input.command);
+  if (HIGH_RISK_COMMANDS.has(base)) {
+    return {
+      risk: "high",
+      reason: `Command "${base}" is classified as high risk.`
+    };
+  }
+
+  if (request.capability === "process.run_background") {
+    return {
+      risk: "high",
+      reason: "Background processes can outlive the request and are treated as high risk."
+    };
+  }
+
+  if (request.input.cwd || envKeys.length > 0) {
+    return {
+      risk: "high",
+      reason: "Process execution with custom cwd or env is treated as high risk."
+    };
+  }
+
+  return {
+    risk: "medium",
+    reason: `Process "${base}" is not allowlisted like shell.exec and is treated as medium risk.`
+  };
+}

@@ -45,6 +45,8 @@ The executor now does the same sequence for every capability:
 3. Write audit records for the request and the decision.
 4. Either deny, queue approval, or execute through the adapter.
 
+The natural-language layer sits above this. It does not execute anything itself. It only maps some Chinese and English phrases into the same structured requests that `/action` can submit.
+
 ## Execution profiles
 
 Profiles are coarse permission buckets. They are not a real OS sandbox.
@@ -58,6 +60,10 @@ Profiles are capability-aware. For example:
 
 - `fs.read` supports `readonly`
 - `fs.write` supports `workspace-write`
+- `fs.list` and `fs.stat` support `readonly`
+- `fs.append` and `fs.mkdir` support `workspace-write`
+- `os.screenshot` supports `desktop-safe`
+- `process.run_background` and `process.kill` support only `dangerous`
 - `mac.applescript` supports only `dangerous`
 
 Config can disable profiles entirely with `LOBSTERMIND_ALLOWED_EXECUTION_PROFILES`.
@@ -69,7 +75,9 @@ Policy is still intentionally simple:
 - approval mode decides whether `low`, `medium`, or `high` risk work auto-runs
 - each capability definition contains its own policy evaluation logic
 - shell execution still requires an allowlisted base command
-- `fs.read` and `fs.write` are limited to the workspace and data roots
+- `fs.*` write-like operations are limited to the workspace and data roots
+- screenshot output paths are limited to the workspace and data roots
+- generic process execution is separate from `shell.exec`, is not shell-expanded, and uses stronger approval gating
 - dangerous or invalid requests are denied and audited instead of silently falling through
 
 This is safer because the policy engine sees the capability name, structured input, and requested profile before any adapter runs.
@@ -84,7 +92,55 @@ It is also more extensible because a new capability can be added by registering 
 - `mac.applescript`
 - `fs.read`
 - `fs.write`
+- `fs.list`
+- `fs.stat`
+- `fs.append`
+- `fs.mkdir`
 - `os.frontmost_app`
+- `os.screenshot`
+- `process.run`
+- `process.run_background`
+- `process.list`
+- `process.kill`
+
+## Natural-language planning
+
+The planner is intentionally small and inspectable:
+
+- it matches a narrow set of file, URL, app, screenshot, and process intents
+- it converts them into a single structured capability request
+- it asks a clarification question when a required path, app name, pid, or command is missing
+- it never sends raw shell text to the OS
+
+Examples of planner output:
+
+```json
+{
+  "capability": "fs.list",
+  "input": {
+    "path": "."
+  },
+  "requestedProfile": "readonly",
+  "metadata": {
+    "sourceCommand": "nl"
+  }
+}
+```
+
+```json
+{
+  "capability": "process.run_background",
+  "input": {
+    "command": "python3",
+    "argv": ["-m", "http.server", "8000"]
+  },
+  "requestedProfile": "dangerous",
+  "metadata": {
+    "sourceCommand": "nl",
+    "note": "Planned from natural-language intent"
+  }
+}
+```
 
 ## Audit log
 
@@ -139,6 +195,9 @@ This does not pretend to be a complete security model.
 
 - Profiles are policy labels, not sandbox enforcement.
 - `shell.exec` still uses direct process spawning, not a container.
+- `process.run` and `process.run_background` also use direct local process spawning.
+- `process.list` currently parses macOS/Unix-style `ps` output.
+- `os.screenshot` uses the local macOS `screencapture` tool, so Screen Recording permission may still be required by the OS.
 - `mac.applescript` remains high-risk and approval-gated.
 - The generic `/action` command trusts caller-supplied JSON shape enough to stay lightweight; capability policy still validates and can deny it.
 

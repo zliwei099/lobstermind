@@ -1,26 +1,6 @@
-import { formatAction, formatApprovals, formatAudits, formatCapabilities, formatMemories, formatSkills } from "../agent/helpers.ts";
+import { formatApprovals, formatAudits, formatCapabilities, formatMemories, formatSkills, submitCapability } from "../agent/helpers.ts";
 import { parseActionRequest, parseAppleScriptAction, parseOpenUrlAction, parseShellAction } from "../agent/parser.ts";
-import type { AgentRuntime } from "../agent/runtime.ts";
-import type { CapabilityRequest } from "../executor/types.ts";
 import type { Skill } from "./skill.ts";
-
-async function submitCapability(runtime: AgentRuntime, senderId: string, request: CapabilityRequest) {
-  const decision = await runtime.executor.submit(senderId, request);
-  if (decision.state === "denied") {
-    return {
-      text: `Denied ${formatAction(runtime, request)}.\nReason: ${decision.reason ?? "Policy denied the request."}`
-    };
-  }
-  if (decision.state === "pending_approval" && decision.approval) {
-    return {
-      text: `Approval required for ${formatAction(runtime, request)}.\nApproval ID: ${decision.approval.id}\nProfile: ${decision.approval.profile}\nReason: ${decision.approval.reason}`
-    };
-  }
-  return {
-    text: `Executed ${formatAction(runtime, request)}.\n${decision.result?.output ?? ""}`.trim(),
-    data: decision.result?.data
-  };
-}
 
 export function createBuiltinSkills(): Skill[] {
   const help: Skill = {

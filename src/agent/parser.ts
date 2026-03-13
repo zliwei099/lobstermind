@@ -23,7 +23,7 @@ export function parseCommand(text: string): ParsedCommand | undefined {
   };
 }
 
-function tokenizeShellArgs(input: string): string[] {
+export function tokenizeShellArgs(input: string): string[] {
   const tokens: string[] = [];
   let current = "";
   let quote: "'" | '"' | undefined;

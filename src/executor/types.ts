@@ -5,7 +5,16 @@ export type CapabilityId =
   | "mac.applescript"
   | "fs.read"
   | "fs.write"
-  | "os.frontmost_app";
+  | "fs.list"
+  | "fs.stat"
+  | "fs.append"
+  | "fs.mkdir"
+  | "os.frontmost_app"
+  | "os.screenshot"
+  | "process.run"
+  | "process.run_background"
+  | "process.list"
+  | "process.kill";
 
 export type ExecutionProfile = "readonly" | "workspace-write" | "desktop-safe" | "dangerous";
 export type RiskLevel = "low" | "medium" | "high";
@@ -48,8 +57,49 @@ export interface FsWriteInput {
   encoding?: BufferEncoding;
 }
 
+export interface FsListInput {
+  path: string;
+  includeHidden?: boolean;
+}
+
+export interface FsStatInput {
+  path: string;
+}
+
+export interface FsAppendInput {
+  path: string;
+  content: string;
+  encoding?: BufferEncoding;
+}
+
+export interface FsMkdirInput {
+  path: string;
+  recursive?: boolean;
+}
+
 export interface FrontmostAppInput {
   includeBundleId?: boolean;
+}
+
+export interface ScreenshotInput {
+  path?: string;
+  format?: "png" | "jpg";
+}
+
+export interface ProcessRunInput {
+  command: string;
+  argv: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+}
+
+export interface ProcessListInput {
+  limit?: number;
+}
+
+export interface ProcessKillInput {
+  pid: number;
+  signal?: NodeJS.Signals;
 }
 
 export interface CapabilityInputMap {
@@ -59,7 +109,16 @@ export interface CapabilityInputMap {
   "mac.applescript": AppleScriptInput;
   "fs.read": FsReadInput;
   "fs.write": FsWriteInput;
+  "fs.list": FsListInput;
+  "fs.stat": FsStatInput;
+  "fs.append": FsAppendInput;
+  "fs.mkdir": FsMkdirInput;
   "os.frontmost_app": FrontmostAppInput;
+  "os.screenshot": ScreenshotInput;
+  "process.run": ProcessRunInput;
+  "process.run_background": ProcessRunInput;
+  "process.list": ProcessListInput;
+  "process.kill": ProcessKillInput;
 }
 
 export type CapabilityRequest =
