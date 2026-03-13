@@ -1,0 +1,22 @@
+{
+  "name": "lobstermind",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LobsterMind (龙虾参谋) MVP personal agent scaffold with memory, skills, Feishu intake, and gated computer control.",
+  "type": "module",
+  "scripts": {
+    "dev": "node --experimental-strip-types src/main.ts",
+    "cli": "node --experimental-strip-types src/cli.ts",
+    "start": "node --experimental-strip-types src/main.ts",
+    "server": "node --experimental-strip-types src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "check": "node --experimental-strip-types src/cli.ts healthcheck"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.2"
+  }
+}
