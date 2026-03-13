@@ -43,13 +43,20 @@ export function createHttpServer(app = createApp()) {
         approvalMode: config.approvalMode,
         feishuMode: config.feishuMode,
         feishuLongConnectionMode: config.feishuLongConnectionMode,
-        feishuLongConnectionAdapter: config.feishuLongConnectionAdapter
+        feishuLongConnectionAdapter: config.feishuLongConnectionAdapter,
+        allowedExecutionProfiles: config.allowedExecutionProfiles,
+        capabilities: runtime.capabilities.list().map((capability) => capability.id)
       });
       return;
     }
 
     if (request.method === "GET" && url.pathname === "/approvals") {
       sendJson(response, 200, { items: runtime.approvals.list() });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/audits") {
+      sendJson(response, 200, { items: runtime.audits.list() });
       return;
     }
 

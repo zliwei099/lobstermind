@@ -1,11 +1,31 @@
-import { parseAppleScriptAction, parseOpenUrlAction, parseShellAction } from "../agent/parser.ts";
-import { formatAction, formatApprovals, formatMemories, formatSkills } from "../agent/helpers.ts";
+import { formatAction, formatApprovals, formatAudits, formatCapabilities, formatMemories, formatSkills } from "../agent/helpers.ts";
+import { parseActionRequest, parseAppleScriptAction, parseOpenUrlAction, parseShellAction } from "../agent/parser.ts";
+import type { AgentRuntime } from "../agent/runtime.ts";
+import type { CapabilityRequest } from "../executor/types.ts";
 import type { Skill } from "./skill.ts";
+
+async function submitCapability(runtime: AgentRuntime, senderId: string, request: CapabilityRequest) {
+  const decision = await runtime.executor.submit(senderId, request);
+  if (decision.state === "denied") {
+    return {
+      text: `Denied ${formatAction(runtime, request)}.\nReason: ${decision.reason ?? "Policy denied the request."}`
+    };
+  }
+  if (decision.state === "pending_approval" && decision.approval) {
+    return {
+      text: `Approval required for ${formatAction(runtime, request)}.\nApproval ID: ${decision.approval.id}\nProfile: ${decision.approval.profile}\nReason: ${decision.approval.reason}`
+    };
+  }
+  return {
+    text: `Executed ${formatAction(runtime, request)}.\n${decision.result?.output ?? ""}`.trim(),
+    data: decision.result?.data
+  };
+}
 
 export function createBuiltinSkills(): Skill[] {
   const help: Skill = {
     name: "help",
-    description: "Show the supported MVP commands.",
+    description: "Show the supported commands.",
     examples: ["/help"],
     async handle({ runtime }) {
       return {
@@ -24,6 +44,17 @@ export function createBuiltinSkills(): Skill[] {
     async handle({ runtime }) {
       return {
         text: formatSkills(runtime.skills.list())
+      };
+    }
+  };
+
+  const capabilities: Skill = {
+    name: "capabilities",
+    description: "List capability protocol operations and their profiles.",
+    examples: ["/capabilities"],
+    async handle({ runtime }) {
+      return {
+        text: formatCapabilities(runtime)
       };
     }
   };
@@ -62,22 +93,14 @@ export function createBuiltinSkills(): Skill[] {
 
   const run: Skill = {
     name: "run",
-    description: "Submit a shell command through the executor layer.",
-    examples: ["/run ls -la"],
+    description: "Submit a structured shell execution request through the capability executor.",
+    examples: ["/run ls -la", "/run echo \"hello world\""],
     async handle({ runtime, message, args }) {
-      const action = parseShellAction(args);
-      if (!action) {
+      const request = parseShellAction(args);
+      if (!request) {
         return { text: "Usage: /run <command>" };
       }
-      const decision = await runtime.executor.submit(message.senderId, action);
-      if (decision.state === "pending_approval" && decision.approval) {
-        return {
-          text: `Approval required for ${formatAction(action)}.\nApproval ID: ${decision.approval.id}\nReason: ${decision.approval.reason}`
-        };
-      }
-      return {
-        text: `Executed ${formatAction(action)}.\n${decision.result?.output ?? ""}`.trim()
-      };
+      return submitCapability(runtime, message.senderId, request);
     }
   };
 
@@ -89,61 +112,58 @@ export function createBuiltinSkills(): Skill[] {
       if (!args) {
         return { text: "Usage: /open-app <app name>" };
       }
-      const action = {
-        type: "desktop.open_app" as const,
-        appName: args
-      };
-      const decision = await runtime.executor.submit(message.senderId, action);
-      if (decision.state === "pending_approval" && decision.approval) {
-        return {
-          text: `Approval required for ${formatAction(action)}.\nApproval ID: ${decision.approval.id}\nReason: ${decision.approval.reason}`
-        };
-      }
-      return {
-        text: decision.result?.output ?? `Executed ${formatAction(action)}`
-      };
+      return submitCapability(runtime, message.senderId, {
+        capability: "desktop.open_app",
+        input: {
+          appName: args
+        },
+        requestedProfile: "desktop-safe",
+        metadata: {
+          sourceCommand: "/open-app"
+        }
+      });
     }
   };
 
   const openUrl: Skill = {
     name: "open-url",
-    description: "Open a URL in the default browser through the executor layer.",
+    description: "Open a URL in the default browser through the capability executor.",
     examples: ["/open-url https://openai.com"],
     async handle({ runtime, message, args }) {
-      const action = parseOpenUrlAction(args);
-      if (!action) {
+      const request = parseOpenUrlAction(args);
+      if (!request) {
         return { text: "Usage: /open-url <https://...>" };
       }
-      const decision = await runtime.executor.submit(message.senderId, action);
-      if (decision.state === "pending_approval" && decision.approval) {
-        return {
-          text: `Approval required for ${formatAction(action)}.\nApproval ID: ${decision.approval.id}\nReason: ${decision.approval.reason}`
-        };
-      }
-      return {
-        text: decision.result?.output ?? `Executed ${formatAction(action)}`
-      };
+      return submitCapability(runtime, message.senderId, request);
     }
   };
 
   const appleScript: Skill = {
     name: "applescript",
-    description: "Run AppleScript only after explicit approval.",
+    description: "Run AppleScript through the dangerous capability profile.",
     examples: ['/applescript tell application "Finder" to activate'],
     async handle({ runtime, message, args }) {
-      const action = parseAppleScriptAction(args);
-      if (!action) {
+      const request = parseAppleScriptAction(args);
+      if (!request) {
         return { text: "Usage: /applescript <script>" };
       }
-      const decision = await runtime.executor.submit(message.senderId, action);
-      if (decision.state === "pending_approval" && decision.approval) {
-        return {
-          text: `Approval required for ${formatAction(action)}.\nApproval ID: ${decision.approval.id}\nReason: ${decision.approval.reason}`
-        };
+      return submitCapability(runtime, message.senderId, request);
+    }
+  };
+
+  const action: Skill = {
+    name: "action",
+    description: "Submit a raw capability request as JSON.",
+    examples: [
+      '/action {"capability":"fs.read","input":{"path":"README.md"}}',
+      '/action {"capability":"os.frontmost_app","input":{}}'
+    ],
+    async handle({ runtime, message, args }) {
+      const request = parseActionRequest(args);
+      if (!request) {
+        return { text: "Usage: /action <json-request>" };
       }
-      return {
-        text: decision.result?.output ?? `Executed ${formatAction(action)}`
-      };
+      return submitCapability(runtime, message.senderId, request);
     }
   };
 
@@ -153,7 +173,18 @@ export function createBuiltinSkills(): Skill[] {
     examples: ["/approvals"],
     async handle({ runtime }) {
       return {
-        text: formatApprovals(runtime.approvals.list())
+        text: formatApprovals(runtime, runtime.approvals.list())
+      };
+    }
+  };
+
+  const audits: Skill = {
+    name: "audits",
+    description: "List recent audit entries.",
+    examples: ["/audits"],
+    async handle({ runtime }) {
+      return {
+        text: formatAudits(runtime, runtime.audits.list())
       };
     }
   };
@@ -171,7 +202,8 @@ export function createBuiltinSkills(): Skill[] {
         return { text: `No pending approval found for ${args}.` };
       }
       return {
-        text: `Approved and executed ${args}.\n${result.output}`.trim()
+        text: `Approved and executed ${args}.\n${result.output}`.trim(),
+        data: result.data
       };
     }
   };
@@ -194,5 +226,5 @@ export function createBuiltinSkills(): Skill[] {
     }
   };
 
-  return [help, skills, remember, memories, run, openApp, openUrl, appleScript, approvals, approve, reject];
+  return [help, skills, capabilities, remember, memories, run, openApp, openUrl, appleScript, action, approvals, audits, approve, reject];
 }

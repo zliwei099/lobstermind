@@ -1,39 +1,87 @@
-export type ActionType =
-  | "shell.command"
+export type CapabilityId =
+  | "shell.exec"
   | "desktop.open_app"
   | "browser.open_url"
-  | "mac.applescript";
+  | "mac.applescript"
+  | "fs.read"
+  | "fs.write"
+  | "os.frontmost_app";
+
+export type ExecutionProfile = "readonly" | "workspace-write" | "desktop-safe" | "dangerous";
 export type RiskLevel = "low" | "medium" | "high";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "executed";
+export type AuditEventType =
+  | "requested"
+  | "pending_approval"
+  | "approved"
+  | "rejected"
+  | "denied"
+  | "executed";
 
-export interface ShellCommandAction {
-  type: "shell.command";
+export interface ShellExecInput {
   command: string;
-  args: string[];
+  argv: string[];
+  cwd?: string;
+  env?: Record<string, string>;
 }
 
-export interface OpenAppAction {
-  type: "desktop.open_app";
+export interface OpenAppInput {
   appName: string;
 }
 
-export interface OpenUrlAction {
-  type: "browser.open_url";
+export interface OpenUrlInput {
   url: string;
 }
 
-export interface AppleScriptAction {
-  type: "mac.applescript";
+export interface AppleScriptInput {
   script: string;
 }
 
-export type ComputerAction = ShellCommandAction | OpenAppAction | OpenUrlAction | AppleScriptAction;
+export interface FsReadInput {
+  path: string;
+  encoding?: BufferEncoding;
+}
+
+export interface FsWriteInput {
+  path: string;
+  content: string;
+  encoding?: BufferEncoding;
+}
+
+export interface FrontmostAppInput {
+  includeBundleId?: boolean;
+}
+
+export interface CapabilityInputMap {
+  "shell.exec": ShellExecInput;
+  "desktop.open_app": OpenAppInput;
+  "browser.open_url": OpenUrlInput;
+  "mac.applescript": AppleScriptInput;
+  "fs.read": FsReadInput;
+  "fs.write": FsWriteInput;
+  "os.frontmost_app": FrontmostAppInput;
+}
+
+export type CapabilityRequest =
+  {
+    [K in CapabilityId]: {
+      capability: K;
+      input: CapabilityInputMap[K];
+      requestedProfile?: ExecutionProfile;
+      metadata?: {
+        sourceCommand?: string;
+        note?: string;
+      };
+    };
+  }[CapabilityId];
 
 export interface ApprovalRequest {
   id: string;
   senderId: string;
   createdAt: string;
-  action: ComputerAction;
+  request: CapabilityRequest;
+  capability: CapabilityId;
+  profile: ExecutionProfile;
   risk: RiskLevel;
   status: ApprovalStatus;
   reason: string;
@@ -43,4 +91,36 @@ export interface ApprovalRequest {
 export interface ExecutionResult {
   ok: boolean;
   output: string;
+  data?: unknown;
+}
+
+export interface PolicyEvaluation {
+  status: "allowed" | "needs_approval" | "denied";
+  profile: ExecutionProfile;
+  risk: RiskLevel;
+  reason: string;
+}
+
+export interface AuditEntry {
+  id: string;
+  createdAt: string;
+  event: AuditEventType;
+  senderId: string;
+  capability: CapabilityId;
+  profile: ExecutionProfile;
+  risk: RiskLevel;
+  reason: string;
+  request: CapabilityRequest;
+  approvalId?: string;
+  result?: {
+    ok: boolean;
+    output: string;
+  };
+}
+
+export interface ExecutionDecision {
+  state: "executed" | "pending_approval" | "denied";
+  result?: ExecutionResult;
+  approval?: ApprovalRequest;
+  reason?: string;
 }

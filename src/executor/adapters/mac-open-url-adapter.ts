@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import type { ExecutionResult, OpenUrlAction } from "../types.ts";
+import type { ExecutionResult, OpenUrlInput } from "../types.ts";
 
 export class MacOpenUrlAdapter {
-  execute(action: OpenUrlAction): Promise<ExecutionResult> {
+  execute(input: OpenUrlInput): Promise<ExecutionResult> {
     return new Promise((resolve) => {
-      const child = spawn("open", [action.url], {
+      const child = spawn("open", [input.url], {
         stdio: ["ignore", "pipe", "pipe"]
       });
 
@@ -17,7 +17,7 @@ export class MacOpenUrlAdapter {
       child.on("close", (code) => {
         resolve({
           ok: code === 0,
-          output: code === 0 ? `Opened URL "${action.url}".` : stderr.trim() || `Exited with code ${code ?? "unknown"}`
+          output: code === 0 ? `Opened URL "${input.url}".` : stderr.trim() || `Exited with code ${code ?? "unknown"}`
         });
       });
 

@@ -5,16 +5,16 @@ LobsterMind (`龙虾参谋`) is a realistic MVP for a personal agent that can:
 - remember notes in a local memory store,
 - register and expose skills,
 - receive inbound messages through a Feishu long-connection runtime, webhook, or local CLI,
-- request computer actions through a well-defined executor layer with approval gating.
+- request computer actions through a capability registry, policy-driven executor, approval queue, and audit log.
 
-This repository intentionally avoids fake autonomous "computer use". Actions go through explicit tool adapters, risk classification, and a persisted approval queue.
+This repository intentionally avoids fake autonomous "computer use". Actions go through explicit capability definitions, profile-aware policy checks, adapter dispatch, a persisted approval queue, and an audit trail.
 
 ## MVP architecture
 
 - `src/agent/`: command routing and minimal agent orchestration
 - `src/memory/`: JSON-backed memory store
 - `src/skills/`: skill registry and built-in skills
-- `src/executor/`: action types, adapters, risk policy, and approvals
+- `src/executor/`: capability protocol, registry, policy evaluation, adapters, approvals, and audit logging
 - `src/integrations/feishu/`: webhook parser plus long-connection runtime
 - `src/main.ts`: desktop runtime entrypoint
 - `src/server.ts`: optional HTTP entrypoint
@@ -62,17 +62,24 @@ npm run cli -- message user-1 "/memories"
 npm run cli -- message user-1 "/run ls -la"
 ```
 
-6. Test the Feishu long-connection stub:
+6. Submit a raw capability request as JSON:
+
+```bash
+npm run cli -- message user-1 '/action {"capability":"fs.read","input":{"path":"README.md"}}'
+```
+
+7. Test the Feishu long-connection stub:
 
 ```bash
 npm run cli -- feishu-stub ou_demo "/skills"
 tail -f data/feishu-stub-outbox.jsonl
 ```
 
-7. Inspect and approve pending actions:
+8. Inspect and approve pending actions:
 
 ```bash
 npm run cli -- approvals
+npm run cli -- audits
 npm run cli -- approve <approval-id>
 ```
 
@@ -168,13 +175,16 @@ For local testing, `POST /agent/messages` accepts a simpler payload:
 
 - `/help`
 - `/skills`
+- `/capabilities`
 - `/remember <text>`
 - `/memories [query]`
 - `/run <shell command>`
 - `/open-app <app name>`
 - `/open-url <https://...>`
 - `/applescript <script>`
+- `/action <json-request>`
 - `/approvals`
+- `/audits`
 - `/approve <id>`
 - `/reject <id>`
 
@@ -186,21 +196,70 @@ Approval mode is controlled by `LOBSTERMIND_APPROVAL_MODE`:
 - `dangerous`: auto-run low-risk actions, require approval for medium/high risk
 - `always`: require approval for every executor action
 
-Built-in actions are explicit:
+Execution profiles are controlled by `LOBSTERMIND_ALLOWED_EXECUTION_PROFILES`:
 
-- `shell.command`
+- `readonly`
+- `workspace-write`
+- `desktop-safe`
+- `dangerous`
+
+Built-in capabilities are explicit:
+
+- `shell.exec`
 - `desktop.open_app`
 - `browser.open_url`
 - `mac.applescript`
+- `fs.read`
+- `fs.write`
+- `os.frontmost_app`
 
 Risk controls in this MVP:
 
+- structured shell execution with `command`, `argv`, optional `cwd`, and optional env subset
+- capability-specific policy evaluation before adapter execution
 - allowlist-based shell execution by base command with a timeout
+- profile-aware gating for readonly, workspace-write, desktop-safe, and dangerous operations
 - browser URL opening separated from shell execution
+- workspace/data-root enforcement for `fs.read` and `fs.write`
 - AppleScript always classified as high risk
 - persisted approval records before dangerous execution
-- clear separation between agent intent and adapter execution
+- append-only audit entries for requests and policy/execution outcomes
+- clear separation between agent intent, policy evaluation, and adapter execution
 - no hidden browser automation or unbounded OS control
+
+Example capability request:
+
+```json
+{
+  "capability": "shell.exec",
+  "input": {
+    "command": "pwd",
+    "argv": []
+  },
+  "requestedProfile": "workspace-write",
+  "metadata": {
+    "sourceCommand": "/run"
+  }
+}
+```
+
+Example audit entry:
+
+```json
+{
+  "event": "pending_approval",
+  "capability": "browser.open_url",
+  "profile": "desktop-safe",
+  "risk": "medium",
+  "approvalId": "apr_12345678",
+  "request": {
+    "capability": "browser.open_url",
+    "input": {
+      "url": "https://openai.com"
+    }
+  }
+}
+```
 
 ## Build
 
@@ -216,6 +275,7 @@ npm run build
 - This repo is runnable with Node 22 directly through `node --experimental-strip-types ...`.
 - In this build environment, opening a real HTTP listener was blocked by the sandbox (`listen EPERM`), so the CLI end-to-end path was used for execution smoke tests.
 - Long-connection design note: [docs/feishu-long-connection.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-long-connection.md)
+- Capability protocol: [docs/capability-protocol.md](/Users/levy/.openclaw/workspace/lobstermind/docs/capability-protocol.md)
 - Real Feishu setup: [docs/feishu-real-setup.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-real-setup.md)
 
 ## Docs

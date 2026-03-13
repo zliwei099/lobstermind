@@ -25,7 +25,12 @@ export class OfficialFeishuLongConnectionSession {
   private readonly agent: LobsterMindAgent;
   private readonly apiClient: FeishuApiClient;
   private readonly deduper = new FeishuMessageDeduper();
-  private wsClient?: { start(): unknown; stop?: () => unknown };
+  private wsClient?: {
+    start(options: {
+      eventDispatcher: unknown;
+    }): unknown;
+    stop?: () => unknown;
+  };
 
   constructor(config: AppConfig, agent: LobsterMindAgent) {
     this.config = config;
@@ -58,7 +63,7 @@ export class OfficialFeishuLongConnectionSession {
       appSecret: this.config.feishuAppSecret
     });
 
-    this.wsClient.start({ eventDispatcher: dispatcher });
+    this.wsClient?.start({ eventDispatcher: dispatcher });
     console.log("Feishu long connection started with the official Node SDK.");
   }
 

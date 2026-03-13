@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import type { ExecutionProfile } from "./executor/types.ts";
 
 export type ApprovalMode = "never" | "dangerous" | "always";
 export type FeishuMode = "off" | "webhook" | "long-connection" | "hybrid";
@@ -54,6 +55,22 @@ function parseAllowlist(input?: string): string[] {
     .filter(Boolean);
 }
 
+function parseList(input: string | undefined, fallback: string): string[] {
+  return (input ?? fallback)
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function parseProfiles(input?: string): ExecutionProfile[] {
+  const parsed = (input ?? "readonly,workspace-write,desktop-safe,dangerous")
+    .split(",")
+    .map((value) => value.trim()) as ExecutionProfile[];
+
+  const valid = new Set<ExecutionProfile>(["readonly", "workspace-write", "desktop-safe", "dangerous"]);
+  return parsed.filter((value): value is ExecutionProfile => valid.has(value));
+}
+
 function normalizeFeishuMode(input?: string): FeishuMode {
   if (input === "off" || input === "webhook" || input === "long-connection" || input === "hybrid") {
     return input;
@@ -95,6 +112,9 @@ export interface AppConfig {
   feishuStubOutboxPath: string;
   feishuStubPollMs: number;
   shellAllowlist: string[];
+  shellEnvAllowlist: string[];
+  workspaceRoot: string;
+  allowedExecutionProfiles: ExecutionProfile[];
 }
 
 export function loadConfig(): AppConfig {
@@ -117,6 +137,9 @@ export function loadConfig(): AppConfig {
     feishuStubInboxPath: path.resolve(process.cwd(), process.env.LOBSTERMIND_FEISHU_STUB_INBOX_PATH ?? "./data/feishu-stub-inbox.jsonl"),
     feishuStubOutboxPath: path.resolve(process.cwd(), process.env.LOBSTERMIND_FEISHU_STUB_OUTBOX_PATH ?? "./data/feishu-stub-outbox.jsonl"),
     feishuStubPollMs: Number(process.env.LOBSTERMIND_FEISHU_STUB_POLL_MS ?? 2_000),
-    shellAllowlist: parseAllowlist(process.env.LOBSTERMIND_SHELL_ALLOWLIST)
+    shellAllowlist: parseAllowlist(process.env.LOBSTERMIND_SHELL_ALLOWLIST),
+    shellEnvAllowlist: parseList(process.env.LOBSTERMIND_SHELL_ENV_ALLOWLIST, "PATH,HOME,TMPDIR"),
+    workspaceRoot: path.resolve(process.cwd()),
+    allowedExecutionProfiles: parseProfiles(process.env.LOBSTERMIND_ALLOWED_EXECUTION_PROFILES)
   };
 }

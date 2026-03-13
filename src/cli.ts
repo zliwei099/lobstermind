@@ -13,6 +13,7 @@ async function main(): Promise<void> {
       "Usage:",
       "  npm run cli -- message <senderId> <text>",
       "  npm run cli -- approvals",
+      "  npm run cli -- audits",
       "  npm run cli -- approve <approval-id>",
       "  npm run cli -- reject <approval-id>",
       "  npm run cli -- feishu-stub <senderId> <text>",
@@ -38,6 +39,11 @@ async function main(): Promise<void> {
 
   if (command === "approvals") {
     console.log(JSON.stringify(runtime.approvals.list(), null, 2));
+    return;
+  }
+
+  if (command === "audits") {
+    console.log(JSON.stringify(runtime.audits.list(), null, 2));
     return;
   }
 
@@ -74,7 +80,9 @@ async function main(): Promise<void> {
       feishuMode: runtime.config.feishuMode,
       feishuLongConnectionMode: runtime.config.feishuLongConnectionMode,
       feishuLongConnectionAdapter: runtime.config.feishuLongConnectionAdapter,
-      skills: runtime.skills.list().map((skill) => skill.name)
+      allowedExecutionProfiles: runtime.config.allowedExecutionProfiles,
+      skills: runtime.skills.list().map((skill) => skill.name),
+      capabilities: runtime.capabilities.list().map((capability) => capability.id)
     }, null, 2));
     return;
   }

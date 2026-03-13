@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import type { AppleScriptAction, ExecutionResult } from "../types.ts";
+import type { AppleScriptInput, ExecutionResult } from "../types.ts";
 
 export class MacAppleScriptAdapter {
-  execute(action: AppleScriptAction): Promise<ExecutionResult> {
+  execute(input: AppleScriptInput): Promise<ExecutionResult> {
     return new Promise((resolve) => {
-      const child = spawn("osascript", ["-e", action.script], {
+      const child = spawn("osascript", ["-e", input.script], {
         stdio: ["ignore", "pipe", "pipe"]
       });
 

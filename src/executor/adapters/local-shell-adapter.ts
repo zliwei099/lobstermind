@@ -1,25 +1,28 @@
 import { spawn } from "node:child_process";
-import type { ShellCommandAction, ExecutionResult } from "../types.ts";
+import process from "node:process";
+import type { ExecutionResult, ShellExecInput } from "../types.ts";
 
 export class LocalShellAdapter {
-  allowlist: string[];
-  timeoutMs: number;
+  private readonly allowlist: string[];
+  private readonly timeoutMs: number;
 
   constructor(allowlist: string[], timeoutMs: number) {
     this.allowlist = allowlist;
     this.timeoutMs = timeoutMs;
   }
 
-  execute(action: ShellCommandAction): Promise<ExecutionResult> {
-    if (!this.allowlist.includes(action.command)) {
+  execute(input: ShellExecInput): Promise<ExecutionResult> {
+    if (!this.allowlist.includes(input.command)) {
       return Promise.resolve({
         ok: false,
-        output: `Command "${action.command}" is not in the allowlist.`
+        output: `Command "${input.command}" is not in the allowlist.`
       });
     }
 
     return new Promise((resolve) => {
-      const child = spawn(action.command, action.args, {
+      const child = spawn(input.command, input.argv, {
+        cwd: input.cwd,
+        env: input.env ? { ...process.env, ...input.env } : process.env,
         stdio: ["ignore", "pipe", "pipe"]
       });
       const timeout = setTimeout(() => {

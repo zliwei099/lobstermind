@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import type { ExecutionResult, OpenAppAction } from "../types.ts";
+import type { ExecutionResult, OpenAppInput } from "../types.ts";
 
 export class MacOpenAppAdapter {
-  execute(action: OpenAppAction): Promise<ExecutionResult> {
+  execute(input: OpenAppInput): Promise<ExecutionResult> {
     return new Promise((resolve) => {
-      const child = spawn("open", ["-a", action.appName], {
+      const child = spawn("open", ["-a", input.appName], {
         stdio: ["ignore", "pipe", "pipe"]
       });
 
@@ -17,7 +17,7 @@ export class MacOpenAppAdapter {
       child.on("close", (code) => {
         resolve({
           ok: code === 0,
-          output: code === 0 ? `Opened app "${action.appName}".` : stderr.trim() || `Exited with code ${code ?? "unknown"}`
+          output: code === 0 ? `Opened app "${input.appName}".` : stderr.trim() || `Exited with code ${code ?? "unknown"}`
         });
       });
 

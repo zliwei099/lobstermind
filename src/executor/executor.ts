@@ -1,59 +1,66 @@
-import type { ApprovalMode } from "../config.ts";
-import { classifyRisk, requiresApproval } from "./policy.ts";
+import type { AppConfig } from "../config.ts";
 import { ApprovalStore } from "./approval-store.ts";
-import { LocalShellAdapter } from "./adapters/local-shell-adapter.ts";
-import { MacOpenAppAdapter } from "./adapters/mac-open-app-adapter.ts";
-import { MacOpenUrlAdapter } from "./adapters/mac-open-url-adapter.ts";
-import { MacAppleScriptAdapter } from "./adapters/mac-applescript-adapter.ts";
-import type { ApprovalRequest, ComputerAction, ExecutionResult } from "./types.ts";
-
-export interface ExecutionDecision {
-  state: "executed" | "pending_approval";
-  result?: ExecutionResult;
-  approval?: ApprovalRequest;
-}
+import { AuditStore } from "./audit-store.ts";
+import { CapabilityRegistry } from "./capability-registry.ts";
+import type {
+  ApprovalRequest,
+  CapabilityRequest,
+  ExecutionDecision,
+  ExecutionResult,
+  PolicyEvaluation
+} from "./types.ts";
 
 export class ComputerActionExecutor {
-  approvalMode: ApprovalMode;
-  approvals: ApprovalStore;
-  shellAdapter: LocalShellAdapter;
-  openAppAdapter: MacOpenAppAdapter;
-  openUrlAdapter: MacOpenUrlAdapter;
-  appleScriptAdapter: MacAppleScriptAdapter;
+  private readonly config: AppConfig;
+  private readonly approvals: ApprovalStore;
+  private readonly audits: AuditStore;
+  private readonly capabilities: CapabilityRegistry;
 
-  constructor(
-    approvalMode: ApprovalMode,
-    approvals: ApprovalStore,
-    shellAdapter: LocalShellAdapter,
-    openAppAdapter: MacOpenAppAdapter,
-    openUrlAdapter: MacOpenUrlAdapter,
-    appleScriptAdapter: MacAppleScriptAdapter
-  ) {
-    this.approvalMode = approvalMode;
+  constructor(config: AppConfig, approvals: ApprovalStore, audits: AuditStore, capabilities: CapabilityRegistry) {
+    this.config = config;
     this.approvals = approvals;
-    this.shellAdapter = shellAdapter;
-    this.openAppAdapter = openAppAdapter;
-    this.openUrlAdapter = openUrlAdapter;
-    this.appleScriptAdapter = appleScriptAdapter;
+    this.audits = audits;
+    this.capabilities = capabilities;
   }
 
-  async submit(senderId: string, action: ComputerAction): Promise<ExecutionDecision> {
-    const { risk, reason } = classifyRisk(action);
+  async submit(senderId: string, request: CapabilityRequest): Promise<ExecutionDecision> {
+    const capability = this.capabilities.get(request.capability);
+    if (!capability) {
+      return {
+        state: "denied",
+        reason: `Unknown capability "${request.capability}".`
+      };
+    }
 
-    if (requiresApproval(this.approvalMode, risk)) {
+    const evaluation = capability.evaluatePolicy(request, { config: this.config });
+    this.recordAudit("requested", senderId, request, evaluation);
+
+    if (evaluation.status === "denied") {
+      this.recordAudit("denied", senderId, request, evaluation);
+      return {
+        state: "denied",
+        reason: evaluation.reason
+      };
+    }
+
+    if (evaluation.status === "needs_approval") {
       const approval = this.approvals.create({
         senderId,
-        action,
-        risk,
-        reason
+        request,
+        capability: request.capability,
+        profile: evaluation.profile,
+        risk: evaluation.risk,
+        reason: evaluation.reason
       });
+      this.recordAudit("pending_approval", senderId, request, evaluation, undefined, approval.id);
       return {
         state: "pending_approval",
         approval
       };
     }
 
-    const result = await this.execute(action);
+    const result = await capability.execute(request, { config: this.config });
+    this.recordAudit("executed", senderId, request, evaluation, result);
     return {
       state: "executed",
       result
@@ -65,9 +72,30 @@ export class ComputerActionExecutor {
     if (!record || record.status !== "pending") {
       return undefined;
     }
+
     this.approvals.updateStatus(id, "approved");
-    const result = await this.execute(record.action);
+    const evaluation: PolicyEvaluation = {
+      status: "allowed",
+      profile: record.profile,
+      risk: record.risk,
+      reason: record.reason
+    };
+    this.recordAudit("approved", record.senderId, record.request, evaluation, undefined, record.id);
+
+    const capability = this.capabilities.get(record.capability);
+    if (!capability) {
+      const result = {
+        ok: false,
+        output: `Capability "${record.capability}" is no longer registered.`
+      };
+      this.recordAudit("executed", record.senderId, record.request, evaluation, result, record.id);
+      this.approvals.updateStatus(id, "executed");
+      return result;
+    }
+
+    const result = await capability.execute(record.request, { config: this.config });
     this.approvals.updateStatus(id, "executed");
+    this.recordAudit("executed", record.senderId, record.request, evaluation, result, record.id);
     return result;
   }
 
@@ -76,19 +104,48 @@ export class ComputerActionExecutor {
     if (!record || record.status !== "pending") {
       return undefined;
     }
-    return this.approvals.updateStatus(id, "rejected");
+    const rejected = this.approvals.updateStatus(id, "rejected");
+    if (rejected) {
+      this.recordAudit(
+        "rejected",
+        rejected.senderId,
+        rejected.request,
+        {
+          status: "denied",
+          profile: rejected.profile,
+          risk: rejected.risk,
+          reason: rejected.reason
+        },
+        undefined,
+        rejected.id
+      );
+    }
+    return rejected;
   }
 
-  execute(action: ComputerAction): Promise<ExecutionResult> {
-    if (action.type === "shell.command") {
-      return this.shellAdapter.execute(action);
-    }
-    if (action.type === "desktop.open_app") {
-      return this.openAppAdapter.execute(action);
-    }
-    if (action.type === "browser.open_url") {
-      return this.openUrlAdapter.execute(action);
-    }
-    return this.appleScriptAdapter.execute(action);
+  private recordAudit(
+    event: "requested" | "pending_approval" | "approved" | "rejected" | "denied" | "executed",
+    senderId: string,
+    request: CapabilityRequest,
+    evaluation: PolicyEvaluation,
+    result?: ExecutionResult,
+    approvalId?: string
+  ): void {
+    this.audits.append({
+      event,
+      senderId,
+      capability: request.capability,
+      profile: evaluation.profile,
+      risk: evaluation.risk,
+      reason: evaluation.reason,
+      request,
+      approvalId,
+      result: result
+        ? {
+            ok: result.ok,
+            output: result.output
+          }
+        : undefined
+    });
   }
 }
