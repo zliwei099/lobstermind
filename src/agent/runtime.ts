@@ -5,6 +5,7 @@ import { ApprovalStore } from "../executor/approval-store.ts";
 import { AuditStore } from "../executor/audit-store.ts";
 import { CapabilityRegistry } from "../executor/capability-registry.ts";
 import { ComputerActionExecutor } from "../executor/executor.ts";
+import type { Brain } from "../brain/types.ts";
 
 export interface AgentRuntime {
   config: AppConfig;
@@ -14,4 +15,5 @@ export interface AgentRuntime {
   audits: AuditStore;
   capabilities: CapabilityRegistry;
   executor: ComputerActionExecutor;
+  brain?: Brain;
 }

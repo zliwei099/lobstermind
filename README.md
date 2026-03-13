@@ -5,7 +5,7 @@ LobsterMind (`龙虾参谋`) is a realistic MVP for a personal agent that can:
 - remember notes in a local memory store,
 - register and expose skills,
 - receive inbound messages through a Feishu long-connection runtime, webhook, or local CLI,
-- map common natural-language requests into structured capability requests,
+- map common natural-language requests into structured capability requests with a rule-first planner plus optional Codex brain fallback,
 - request computer actions through a capability registry, policy-driven executor, approval queue, and audit log.
 
 This repository intentionally avoids fake autonomous "computer use". Actions go through explicit capability definitions, profile-aware policy checks, adapter dispatch, a persisted approval queue, and an audit trail.
@@ -86,7 +86,13 @@ npm run cli -- approve <approval-id>
 
 ## Natural-language planner
 
-Free-form messages now go through a lightweight rule-based planner before falling back to memory search. The planner only emits structured capability requests; execution still goes through the same policy, approval, and audit pipeline as `/action`.
+Free-form messages now go through:
+
+1. a lightweight rule-based planner for common intents
+2. an optional brain layer for unmatched requests
+3. memory/help fallback if no planner can produce a structured result
+
+Both planners only emit structured capability requests or clarification questions. Execution still goes through the same policy, approval, and audit pipeline as `/action`.
 
 Examples:
 
@@ -101,6 +107,35 @@ npm run cli -- message user-1 "kill process 12345"
 ```
 
 If a key argument is missing, the planner asks a clarification question instead of guessing.
+
+## Brain layer
+
+The optional brain layer lets LobsterMind call the local Codex CLI through its existing OAuth session and ask `gpt-5.4` to plan a structured capability request.
+
+Key design constraints:
+
+- the brain only plans, never executes
+- output must be structured JSON
+- all execution still flows through the capability protocol, policy checks, approvals, and audit log
+- if the brain is disabled or unavailable, LobsterMind still runs with the rule-based planner alone
+
+Config:
+
+```dotenv
+LOBSTERMIND_BRAIN_ENABLED=true
+LOBSTERMIND_BRAIN_PROVIDER=codex
+LOBSTERMIND_BRAIN_MODEL=gpt-5.4
+```
+
+For local testing without Codex, use:
+
+```dotenv
+LOBSTERMIND_BRAIN_PROVIDER=mock
+```
+
+Setup and examples:
+
+- Brain + Codex OAuth guide: [docs/brain-codex.md](/Users/levy/.openclaw/workspace/lobstermind/docs/brain-codex.md)
 
 ## Feishu long connection
 
@@ -245,6 +280,7 @@ Risk controls in this MVP:
 
 - structured shell execution with `command`, `argv`, optional `cwd`, and optional env subset
 - natural-language planning limited to explicit, inspectable rules and structured request emission
+- optional LLM planning constrained to a single structured JSON response and the registered capability set
 - capability-specific policy evaluation before adapter execution
 - allowlist-based shell execution by base command with a timeout
 - profile-aware gating for readonly, workspace-write, desktop-safe, and dangerous operations
@@ -306,6 +342,7 @@ npm run build
 - In this build environment, opening a real HTTP listener was blocked by the sandbox (`listen EPERM`), so the CLI end-to-end path was used for execution smoke tests.
 - Long-connection design note: [docs/feishu-long-connection.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-long-connection.md)
 - Capability protocol: [docs/capability-protocol.md](/Users/levy/.openclaw/workspace/lobstermind/docs/capability-protocol.md)
+- Brain + Codex OAuth: [docs/brain-codex.md](/Users/levy/.openclaw/workspace/lobstermind/docs/brain-codex.md)
 - Real Feishu setup: [docs/feishu-real-setup.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-real-setup.md)
 
 ## Docs

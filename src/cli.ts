@@ -80,6 +80,9 @@ async function main(): Promise<void> {
       feishuMode: runtime.config.feishuMode,
       feishuLongConnectionMode: runtime.config.feishuLongConnectionMode,
       feishuLongConnectionAdapter: runtime.config.feishuLongConnectionAdapter,
+      brainEnabled: runtime.config.brainEnabled,
+      brainProvider: runtime.config.brainProvider,
+      brainModel: runtime.config.brainModel,
       allowedExecutionProfiles: runtime.config.allowedExecutionProfiles,
       skills: runtime.skills.list().map((skill) => skill.name),
       capabilities: runtime.capabilities.list().map((capability) => capability.id)

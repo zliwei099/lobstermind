@@ -1,7 +1,7 @@
 import type { CapabilityRequest } from "../executor/types.ts";
 import { tokenizeShellArgs } from "./parser.ts";
 
-type PlannerResult =
+export type PlannerResult =
   | {
       kind: "request";
       request: CapabilityRequest;

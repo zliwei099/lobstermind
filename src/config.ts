@@ -7,6 +7,7 @@ export type ApprovalMode = "never" | "dangerous" | "always";
 export type FeishuMode = "off" | "webhook" | "long-connection" | "hybrid";
 export type FeishuLongConnectionMode = "off" | "stub" | "real";
 export type FeishuLongConnectionAdapter = "official" | "relay";
+export type BrainProvider = "codex" | "mock";
 
 function parseDotEnv(contents: string): Record<string, string> {
   const entries: Record<string, string> = {};
@@ -92,6 +93,20 @@ function normalizeFeishuLongConnectionAdapter(input?: string): FeishuLongConnect
   return "official";
 }
 
+function parseBoolean(input: string | undefined, fallback: boolean): boolean {
+  if (input === undefined) {
+    return fallback;
+  }
+  return input === "true";
+}
+
+function normalizeBrainProvider(input?: string): BrainProvider {
+  if (input === "codex" || input === "mock") {
+    return input;
+  }
+  return "codex";
+}
+
 export interface AppConfig {
   host: string;
   port: number;
@@ -115,6 +130,10 @@ export interface AppConfig {
   shellEnvAllowlist: string[];
   workspaceRoot: string;
   allowedExecutionProfiles: ExecutionProfile[];
+  brainEnabled: boolean;
+  brainProvider: BrainProvider;
+  brainModel: string;
+  brainCodexCommand: string;
 }
 
 export function loadConfig(): AppConfig {
@@ -140,6 +159,10 @@ export function loadConfig(): AppConfig {
     shellAllowlist: parseAllowlist(process.env.LOBSTERMIND_SHELL_ALLOWLIST),
     shellEnvAllowlist: parseList(process.env.LOBSTERMIND_SHELL_ENV_ALLOWLIST, "PATH,HOME,TMPDIR"),
     workspaceRoot: path.resolve(process.cwd()),
-    allowedExecutionProfiles: parseProfiles(process.env.LOBSTERMIND_ALLOWED_EXECUTION_PROFILES)
+    allowedExecutionProfiles: parseProfiles(process.env.LOBSTERMIND_ALLOWED_EXECUTION_PROFILES),
+    brainEnabled: parseBoolean(process.env.LOBSTERMIND_BRAIN_ENABLED, false),
+    brainProvider: normalizeBrainProvider(process.env.LOBSTERMIND_BRAIN_PROVIDER),
+    brainModel: process.env.LOBSTERMIND_BRAIN_MODEL || "gpt-5.4",
+    brainCodexCommand: process.env.LOBSTERMIND_BRAIN_CODEX_COMMAND || "codex"
   };
 }
