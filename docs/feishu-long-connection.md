@@ -14,7 +14,8 @@ For LobsterMind as a personal desktop agent, long connection is the better defau
 - `webhook` mode still exists for compatibility and testing.
 - `long-connection` is the preferred mode in `.env.example`.
 - `stub` long-connection mode is included so the end-to-end loop is runnable without pretending Feishu credentials are optional.
-- `real` long-connection mode requires Feishu app credentials and a websocket URL. Those are deployment inputs, not hardcoded assumptions.
+- `real` long-connection mode now defaults to the official Feishu Node SDK long-connection client.
+- a separate `relay` adapter exists only for users who already operate their own websocket bridge that forwards Feishu-style event envelopes.
 
 ## Safety implications
 
@@ -24,3 +25,5 @@ Long connection does not weaken the approval model. It only changes transport. A
 - explicit action adapters
 - risk classification
 - persisted approval records when required
+
+See the concrete setup steps in [docs/feishu-real-setup.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-real-setup.md).

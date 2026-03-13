@@ -42,7 +42,8 @@ export function createHttpServer(app = createApp()) {
         service: config.feishuBotName,
         approvalMode: config.approvalMode,
         feishuMode: config.feishuMode,
-        feishuLongConnectionMode: config.feishuLongConnectionMode
+        feishuLongConnectionMode: config.feishuLongConnectionMode,
+        feishuLongConnectionAdapter: config.feishuLongConnectionAdapter
       });
       return;
     }

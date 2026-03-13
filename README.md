@@ -102,21 +102,32 @@ Example inbox line format:
 
 ### Real mode
 
-Real mode is an honest MVP integration point. It requires Feishu app credentials and a long-connection websocket endpoint:
+Real mode now defaults to Feishu's official long-connection pattern through the Node SDK instead of assuming a raw websocket URL is enough.
 
 - `LOBSTERMIND_FEISHU_LONG_CONNECTION_MODE=real`
+- `LOBSTERMIND_FEISHU_LONG_CONNECTION_ADAPTER=official`
 - `LOBSTERMIND_FEISHU_APP_ID`
 - `LOBSTERMIND_FEISHU_APP_SECRET`
-- `LOBSTERMIND_FEISHU_WS_URL`
+- run `npm install` so `@larksuiteoapi/node-sdk` is available
 
 What the runtime does in real mode:
 
-- fetches a tenant access token from Feishu
-- opens a websocket to `LOBSTERMIND_FEISHU_WS_URL`
-- parses inbound text events into the existing agent router
-- sends text replies back through Feishu's IM API
+- fetches and caches a tenant access token from Feishu's auth API
+- starts Feishu event subscription long-connection handling through the official Node SDK
+- routes `im.message.receive_v1` text events into the existing agent
+- replies through Feishu's IM API using `chat_id` when possible, then falls back to `open_id` or `user_id`
+- rejects unsupported non-text messages with an explicit reply instead of silently dropping them
 
-This avoids hardcoding deployment-specific websocket assumptions into the repo. If your Feishu setup uses a relay or a different long-connection URL, provide that URL directly.
+If you already have your own websocket relay that emits webhook-style Feishu event envelopes, you can still use it:
+
+- `LOBSTERMIND_FEISHU_LONG_CONNECTION_ADAPTER=relay`
+- `LOBSTERMIND_FEISHU_WS_URL=wss://...`
+
+That relay path is intentionally documented as a custom transport, not Feishu's official long-connection protocol.
+
+See the full setup guide here:
+
+- Real setup: [docs/feishu-real-setup.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-real-setup.md)
 
 ## HTTP endpoints
 
@@ -205,6 +216,7 @@ npm run build
 - This repo is runnable with Node 22 directly through `node --experimental-strip-types ...`.
 - In this build environment, opening a real HTTP listener was blocked by the sandbox (`listen EPERM`), so the CLI end-to-end path was used for execution smoke tests.
 - Long-connection design note: [docs/feishu-long-connection.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-long-connection.md)
+- Real Feishu setup: [docs/feishu-real-setup.md](/Users/levy/.openclaw/workspace/lobstermind/docs/feishu-real-setup.md)
 
 ## Docs
 

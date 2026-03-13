@@ -1,7 +1,7 @@
 import { createApp } from "./app.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { formatStubEvent } from "./integrations/feishu/long-connection.ts";
+import { formatStubEvent } from "./integrations/feishu/events.ts";
 
 const { agent, runtime } = createApp();
 
@@ -73,6 +73,7 @@ async function main(): Promise<void> {
       approvalMode: runtime.config.approvalMode,
       feishuMode: runtime.config.feishuMode,
       feishuLongConnectionMode: runtime.config.feishuLongConnectionMode,
+      feishuLongConnectionAdapter: runtime.config.feishuLongConnectionAdapter,
       skills: runtime.skills.list().map((skill) => skill.name)
     }, null, 2));
     return;

@@ -5,6 +5,7 @@ import process from "node:process";
 export type ApprovalMode = "never" | "dangerous" | "always";
 export type FeishuMode = "off" | "webhook" | "long-connection" | "hybrid";
 export type FeishuLongConnectionMode = "off" | "stub" | "real";
+export type FeishuLongConnectionAdapter = "official" | "relay";
 
 function parseDotEnv(contents: string): Record<string, string> {
   const entries: Record<string, string> = {};
@@ -67,6 +68,13 @@ function normalizeFeishuLongConnectionMode(input?: string): FeishuLongConnection
   return "stub";
 }
 
+function normalizeFeishuLongConnectionAdapter(input?: string): FeishuLongConnectionAdapter {
+  if (input === "official" || input === "relay") {
+    return input;
+  }
+  return "official";
+}
+
 export interface AppConfig {
   host: string;
   port: number;
@@ -78,6 +86,7 @@ export interface AppConfig {
   feishuBotName: string;
   feishuMode: FeishuMode;
   feishuLongConnectionMode: FeishuLongConnectionMode;
+  feishuLongConnectionAdapter: FeishuLongConnectionAdapter;
   feishuAppId?: string;
   feishuAppSecret?: string;
   feishuWsUrl?: string;
@@ -100,6 +109,7 @@ export function loadConfig(): AppConfig {
     feishuBotName: process.env.LOBSTERMIND_FEISHU_BOT_NAME || "LobsterMind",
     feishuMode: normalizeFeishuMode(process.env.LOBSTERMIND_FEISHU_MODE),
     feishuLongConnectionMode: normalizeFeishuLongConnectionMode(process.env.LOBSTERMIND_FEISHU_LONG_CONNECTION_MODE),
+    feishuLongConnectionAdapter: normalizeFeishuLongConnectionAdapter(process.env.LOBSTERMIND_FEISHU_LONG_CONNECTION_ADAPTER),
     feishuAppId: process.env.LOBSTERMIND_FEISHU_APP_ID || undefined,
     feishuAppSecret: process.env.LOBSTERMIND_FEISHU_APP_SECRET || undefined,
     feishuWsUrl: process.env.LOBSTERMIND_FEISHU_WS_URL || undefined,

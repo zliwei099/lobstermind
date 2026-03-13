@@ -15,6 +15,9 @@ async function main(): Promise<void> {
 
   if (app.config.feishuMode === "long-connection" || app.config.feishuMode === "hybrid") {
     const session = createFeishuLongConnectionSession(app.config, app.agent);
+    console.log(
+      `Feishu runtime: mode=${app.config.feishuLongConnectionMode}, adapter=${app.config.feishuLongConnectionAdapter}`
+    );
     await session.start();
 
     const stop = async () => {
