@@ -1,16 +1,24 @@
 import type { PlannerEnvelope, PlannerProvider, PlannerRuntimeRequest } from "./types.ts";
+import { createPlannerProviderDescriptor } from "./provider-descriptor.ts";
 
 export class MockProvider implements PlannerProvider {
-  readonly descriptor = {
+  readonly descriptor = createPlannerProviderDescriptor({
     id: "mock",
     label: "Mock planner provider",
-    transport: "mock",
     experimental: false,
     supportsToolCalling: false,
-    providerId: "mock",
-    modelRef: "mock/mock",
-    runtimeApiKind: "mock"
-  } as const;
+    target: {
+      providerId: "mock",
+      providerFamily: "mock",
+      modelRef: "mock/mock",
+      runtimeApiKind: "mock",
+      runtimeWrapper: {
+        transportMode: "mock",
+        fastMode: "off",
+        payloadNormalizerId: "mock"
+      }
+    }
+  });
 
   async plan(request: PlannerRuntimeRequest): Promise<PlannerEnvelope> {
     return {

@@ -1,10 +1,25 @@
 export type NormalizedProviderId = "openai" | "openai-codex" | "mock";
+export type ProviderFamily = "openai" | "mock";
 
 export type PlannerRuntimeApiKind =
   | "openai-responses"
   | "openai-codex-responses"
   | "experimental-codex-cli-bridge"
   | "mock";
+
+export type PlannerRuntimeTransportMode = "mock" | "cli-bridge" | "native-runtime";
+export type PlannerRuntimeFastMode = "off" | "on";
+export type PlannerPayloadNormalizerId =
+  | "mock"
+  | "openai-responses"
+  | "openai-codex-responses"
+  | "experimental-codex-cli-bridge";
+
+export interface PlannerRuntimeWrapperParams {
+  transportMode: PlannerRuntimeTransportMode;
+  fastMode: PlannerRuntimeFastMode;
+  payloadNormalizerId: PlannerPayloadNormalizerId;
+}
 
 export interface PlannerRuntimeTargetInput {
   modelRef?: string;
@@ -18,9 +33,11 @@ export interface PlannerRuntimeTargetInput {
 
 export interface PlannerRuntimeTarget {
   providerId: NormalizedProviderId;
+  providerFamily: ProviderFamily;
   modelId: string;
   modelRef: string;
   runtimeApiKind: PlannerRuntimeApiKind;
+  runtimeWrapper: PlannerRuntimeWrapperParams;
   authProfileId?: string;
   source: "model-ref" | "provider-model" | "legacy-brain";
 }
@@ -70,6 +87,35 @@ function normalizeRuntimeApiKind(input?: string): PlannerRuntimeApiKind | undefi
     return normalized;
   }
   throw new Error(`Unsupported planner runtime API kind "${input}".`);
+}
+
+export function providerFamilyForProviderId(providerId: NormalizedProviderId): ProviderFamily {
+  if (providerId === "mock") {
+    return "mock";
+  }
+  return "openai";
+}
+
+export function createPlannerRuntimeWrapper(runtimeApiKind: PlannerRuntimeApiKind): PlannerRuntimeWrapperParams {
+  if (runtimeApiKind === "mock") {
+    return {
+      transportMode: "mock",
+      fastMode: "off",
+      payloadNormalizerId: "mock"
+    };
+  }
+  if (runtimeApiKind === "experimental-codex-cli-bridge") {
+    return {
+      transportMode: "cli-bridge",
+      fastMode: "off",
+      payloadNormalizerId: "experimental-codex-cli-bridge"
+    };
+  }
+  return {
+    transportMode: "native-runtime",
+    fastMode: "off",
+    payloadNormalizerId: runtimeApiKind
+  };
 }
 
 function defaultRuntimeApiKind(providerId: NormalizedProviderId): PlannerRuntimeApiKind {
@@ -129,11 +175,12 @@ export function normalizePlannerRuntimeTarget(input: PlannerRuntimeTargetInput):
 
   return {
     providerId,
+    providerFamily: providerFamilyForProviderId(providerId),
     modelId,
     modelRef: `${providerId}/${modelId}`,
     runtimeApiKind: resolvedRuntimeApiKind,
+    runtimeWrapper: createPlannerRuntimeWrapper(resolvedRuntimeApiKind),
     authProfileId,
     source
   };
 }
-

@@ -116,6 +116,7 @@ Current architecture:
 
 - the planner runtime exports a model-facing tool catalog from the capability registry
 - a provider adapter turns user intent plus that tool catalog into one structured planning envelope
+- the planner target now distinguishes provider identity, provider family, runtime API kind, and lightweight runtime-wrapper params
 - the runtime validates, normalizes, and annotates provider output before any capability request is accepted
 - execution still happens only through the capability protocol, policy checks, approvals, adapters, and audit log
 - if the planner runtime is disabled or unavailable, LobsterMind still runs with the rule-based planner alone
@@ -127,10 +128,16 @@ Implemented today:
 
 Not implemented today:
 
-- native `openai-responses`
-- native `openai-codex-responses`
+- native `openai-responses`: placeholder contract only
+- native `openai-codex-responses`: placeholder contract only
 
 The Codex CLI bridge is useful as a fallback and development aid, but it is not the intended long-term primary path.
+
+Current runtime-wrapper groundwork is intentionally lightweight:
+
+- `transportMode`: `mock`, `cli-bridge`, or `native-runtime`
+- `fastMode`: explicit wrapper state, currently defaulting to `off`
+- `payloadNormalizerId`: a provider-specific request/response normalization seam for future native runtimes
 
 Config:
 

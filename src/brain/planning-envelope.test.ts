@@ -10,8 +10,14 @@ const descriptor: PlannerProviderDescriptor = {
   experimental: false,
   supportsToolCalling: true,
   providerId: "openai",
+  providerFamily: "openai",
   modelRef: "openai/gpt-5.4",
-  runtimeApiKind: "openai-responses"
+  runtimeApiKind: "openai-responses",
+  runtimeWrapper: {
+    transportMode: "native-runtime",
+    fastMode: "off",
+    payloadNormalizerId: "openai-responses"
+  }
 };
 
 const request: PlannerRuntimeRequest = {

@@ -1,5 +1,10 @@
 import type { CapabilityRequest } from "../executor/types.ts";
-import type { PlannerRuntimeApiKind, NormalizedProviderId } from "./runtime-target.ts";
+import type {
+  NormalizedProviderId,
+  PlannerRuntimeApiKind,
+  PlannerRuntimeWrapperParams,
+  ProviderFamily
+} from "./runtime-target.ts";
 
 export interface Clarification {
   text: string;
@@ -67,8 +72,10 @@ export interface PlannerProviderDescriptor {
   experimental: boolean;
   supportsToolCalling: boolean;
   providerId: NormalizedProviderId;
+  providerFamily: ProviderFamily;
   modelRef: string;
   runtimeApiKind: PlannerRuntimeApiKind;
+  runtimeWrapper: PlannerRuntimeWrapperParams;
 }
 
 export interface PlannerDiagnostic {

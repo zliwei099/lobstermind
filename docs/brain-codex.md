@@ -4,6 +4,13 @@ LobsterMind now has a planner runtime for natural-language requests that are too
 
 This document describes the current Codex CLI bridge runtime implementation. It is implemented today, but it is experimental and should be treated as a temporary fallback rather than LobsterMind's long-term primary architecture.
 
+The planner target now makes that distinction explicit:
+
+- provider identity: `openai-codex`
+- provider family: `openai`
+- runtime API kind: `experimental-codex-cli-bridge`
+- runtime wrapper params: `transportMode=cli-bridge`, `fastMode=off`, `payloadNormalizerId=experimental-codex-cli-bridge`
+
 The planner runtime does not execute actions. It only returns structured planning outputs inside a provider-neutral `planner-envelope.v1`:
 
 - a `CapabilityRequest`
@@ -40,6 +47,13 @@ Implemented runtime targets:
 
 - `openai-codex/gpt-5.4` plus `experimental-codex-cli-bridge`: calls the local `codex` CLI and uses its existing OAuth session
 - `mock/mock` plus `mock`: returns a deterministic clarification response for local testing
+
+Not implemented here:
+
+- native `openai-responses`
+- native `openai-codex-responses`
+
+Those native targets now have placeholder contracts in `src/brain/native-runtime.ts`, but there is still no direct provider/runtime implementation in this repository.
 
 Backward-compatible `LOBSTERMIND_BRAIN_PROVIDER=codex` is still accepted and normalizes to the planner target above.
 

@@ -14,9 +14,18 @@ That separation is now explicit in the codebase.
 - `src/brain/planning-envelope.ts` defines the provider-neutral planning envelope plus normalization and validation.
 - `src/brain/tool-schema.ts` exports model-facing tool definitions from the capability registry.
 - `src/brain/runtime-target.ts` normalizes provider/model/runtime-api config into a planner runtime target.
+- `src/brain/provider-descriptor.ts` builds provider descriptors from normalized runtime targets.
+- `src/brain/native-runtime.ts` defines the explicit placeholder contracts for future native runtimes.
 - `src/auth/auth-profile-store.ts` persists minimal provider auth profiles under `data/auth-profiles.json`.
 - `src/brain/codex-provider.ts` is an experimental Codex CLI bridge runtime implementation.
 - `src/executor/` remains the only place where real execution happens.
+
+The normalized planner target now carries:
+
+- `providerId`: the configured provider identity, such as `openai` or `openai-codex`
+- `providerFamily`: the higher-level family, currently `openai` or `mock`
+- `runtimeApiKind`: the runtime/API contract being targeted
+- `runtimeWrapper`: lightweight wrapper params for `transportMode`, `fastMode`, and `payloadNormalizerId`
 
 The planner runtime accepts provider output in a `planner-envelope.v1` structure and can currently return four structured outcomes:
 
@@ -36,6 +45,13 @@ Each envelope also carries:
 
 There is not yet a native `openai-responses` or `openai-codex-responses` integration in this repository.
 
+What exists for those targets today is a placeholder contract only:
+
+- expected provider identity and family
+- expected transport mode
+- default wrapper params
+- the request/response normalization seam a future implementation should fill
+
 The current `experimental-codex-cli-bridge` runtime is a bridge that shells out to the local Codex CLI, asks for one structured planning decision, and parses the result back into LobsterMind's runtime contract. It is useful for experimentation and local fallback, but it is not the intended long-term primary architecture.
 
 The auth-profile store is intentionally minimal. Today it only supports:
@@ -53,6 +69,8 @@ The runtime now validates provider output before trusting it. Invalid output is 
 The target architecture is:
 
 - normalized model references such as `openai/gpt-5.4` and `openai-codex/gpt-5.4` resolve into runtime targets
+- those runtime targets separate provider identity from provider family and runtime API kind
+- wrapper params stay outside execution and describe how a future runtime transport should shape requests and responses
 - tool-capable models such as GPT-5.4 plan through a provider abstraction
 - the provider consumes LobsterMind's exported tool schemas instead of ad-hoc prompt-only descriptions
 - the provider returns a provider-neutral planning envelope that the runtime validates
@@ -85,10 +103,11 @@ Those surfaces are intended for provider debugging, snapshot testing, and migrat
 The intended migration from the experimental bridge to a future native tool-calling runtime is:
 
 1. keep `src/brain/tool-schema.ts` as the single export path for model-facing tool schemas
-2. implement a new runtime backend for `openai-responses` or `openai-codex-responses` that fills the same `PlannerProvider` contract
-3. return `planner-envelope.v1` objects from that provider
-4. let `src/brain/planner-runtime.ts` keep enforcing capability/profile validation and metadata normalization
-5. keep `src/executor/` as the only execution layer
+2. implement a native runtime adapter that satisfies the placeholder contract in `src/brain/native-runtime.ts`
+3. use the target's `runtimeWrapper.payloadNormalizerId` seam to normalize provider-specific request/response payloads
+4. return `planner-envelope.v1` objects from that provider
+5. let `src/brain/planner-runtime.ts` keep enforcing capability/profile validation and metadata normalization
+6. keep `src/executor/` as the only execution layer
 
 That means a future direct runtime backend should sit beside or replace `src/brain/codex-provider.ts`, not bypass the planner runtime or executor pipeline.
 

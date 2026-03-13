@@ -4,15 +4,15 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { normalizePlannerEnvelope } from "./planning-envelope.ts";
 import type { AuthProfileRecord } from "../auth/auth-profile-store.ts";
+import { createPlannerProviderDescriptor } from "./provider-descriptor.ts";
 import type { PlannerEnvelope, PlannerProvider, PlannerRuntimeRequest } from "./types.ts";
+import type { PlannerRuntimeTarget } from "./runtime-target.ts";
 
 export interface CodexCliBridgeProviderOptions {
   command: string;
   workspaceRoot: string;
-  target: {
+  target: PlannerRuntimeTarget & {
     providerId: "openai-codex";
-    modelRef: string;
-    modelId: string;
     runtimeApiKind: "experimental-codex-cli-bridge";
   };
   authProfile?: AuthProfileRecord;
@@ -164,16 +164,13 @@ export class CodexCliBridgeProvider implements PlannerProvider {
     this.target = options.target;
     this.workspaceRoot = options.workspaceRoot;
     this.authProfile = options.authProfile;
-    this.descriptor = {
+    this.descriptor = createPlannerProviderDescriptor({
       id: options.target.runtimeApiKind,
       label: "Codex CLI bridge",
-      transport: "cli-bridge",
       experimental: true,
       supportsToolCalling: false,
-      providerId: options.target.providerId,
-      modelRef: options.target.modelRef,
-      runtimeApiKind: options.target.runtimeApiKind
-    } as const;
+      target: options.target
+    });
   }
 
   async plan(request: PlannerRuntimeRequest): Promise<PlannerEnvelope> {

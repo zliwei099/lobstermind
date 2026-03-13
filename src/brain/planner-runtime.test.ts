@@ -36,8 +36,14 @@ test("planner runtime applies default profile and metadata to valid requests", a
     experimental: false,
     supportsToolCalling: true,
     providerId: "openai",
+    providerFamily: "openai",
     modelRef: "openai/gpt-5.4",
-    runtimeApiKind: "openai-responses"
+    runtimeApiKind: "openai-responses",
+    runtimeWrapper: {
+      transportMode: "native-runtime",
+      fastMode: "off",
+      payloadNormalizerId: "openai-responses"
+    }
   } as const;
   const provider: PlannerProvider = {
     descriptor,
@@ -83,8 +89,14 @@ test("planner runtime downgrades invalid provider output to unsupported", async 
     experimental: false,
     supportsToolCalling: true,
     providerId: "openai",
+    providerFamily: "openai",
     modelRef: "openai/gpt-5.4",
-    runtimeApiKind: "openai-responses"
+    runtimeApiKind: "openai-responses",
+    runtimeWrapper: {
+      transportMode: "native-runtime",
+      fastMode: "off",
+      payloadNormalizerId: "openai-responses"
+    }
   } as const;
   const provider: PlannerProvider = {
     descriptor,

@@ -3,6 +3,7 @@ import { AuthProfileStore } from "../auth/auth-profile-store.ts";
 import type { CapabilityRegistry } from "../executor/capability-registry.ts";
 import { CodexCliBridgeProvider } from "./codex-provider.ts";
 import { MockProvider } from "./mock-provider.ts";
+import { getNativePlannerRuntimeContract } from "./native-runtime.ts";
 import { ToolCallingPlannerRuntime } from "./planner-runtime.ts";
 import { UnavailablePlannerProvider } from "./unavailable-provider.ts";
 import type { Brain, PlannerProvider, PlannerRuntime } from "./types.ts";
@@ -31,18 +32,17 @@ export function createPlannerRuntime(
     provider = new CodexCliBridgeProvider({
       command: config.plannerCodexCommand,
       workspaceRoot: config.workspaceRoot,
-      target: {
-        providerId: "openai-codex",
-        modelRef: config.plannerTarget.modelRef,
-        modelId: config.plannerTarget.modelId,
-        runtimeApiKind: "experimental-codex-cli-bridge"
+      target: config.plannerTarget as typeof config.plannerTarget & {
+        providerId: "openai-codex";
+        runtimeApiKind: "experimental-codex-cli-bridge";
       },
       authProfile
     });
   } else {
     provider = new UnavailablePlannerProvider({
       target: config.plannerTarget,
-      authProfile
+      authProfile,
+      nativeContract: getNativePlannerRuntimeContract(config.plannerTarget.runtimeApiKind)
     });
   }
 
